@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0">
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="Cache-Control" content="no-siteapp"> 
+    <title>MusicPlayer</title>
+    <meta name="description" content="在线音乐播放器。音乐搜索、播放、下载、歌词同步显示、个人音乐播放列表。"/>
+    <meta name="keywords" content="在线音乐播放器,OnlinePlayer。"/>
+    <style>
+
+     .iframeweb {
+        
+        width: 100%;     
+        height: 960px;
+        vertical-align: bottom;       
+     }
+
+     *{ padding:0; margin:0;}
+         
+     body {
+        width: 100%;
+        height: 100%;  
+        overflow: hidden;
+
+     }
+        </style>
+
+<script>
+
+     var purl = "https://aiwmy.com:99"; //访问的网站
+
+     var winHeight;
+     window.onload = function openheight() {
+      
+        var div = document.getElementById('iframeweb');
+
+          winHeight = window.innerHeight;
+          div.style.height = winHeight + 'px';
+          div.src = purl;
+          //refreshFrame();
+
+    };
+     window.onresize = function autoheight() {
+      
+      var div = document.getElementById('iframeweb');
+
+        winHeight = window.innerHeight;
+        div.style.height = winHeight + 'px';
+
+  };
+    //刷新iframe
+    //function refreshFrame(){
+    //window.open(document.all.iframeweb.src,'iframeweb');
+    //}
+   
+   </script>
+</head>
+<body>
+    <iframe  id="iframeweb"
+     class="iframeweb"
+     name="iframeweb"
+     frameborder="0"
+     marginheight="0"
+     marginwidth="0"
+     scrolling="auto"
+     src="" > </iframe>
+
+
+<!-- 站长统计代码 -->
+<span style="display: none">
+    <!-- 各类统计代码都放在这里…… -->
+    
+</span>
+
+</body>
+</html>
