@@ -37,26 +37,12 @@ function player(id, w) {
       container: document.getElementById('ZsPlay'),
       video: {
         url: 'magnet:?xt=urn:btih:CE066C6D02F8E0A5356ADA75D7998FE7ADE9647E',
-        type: 'customWebTorrent',
-	      customType: {
-            customWebTorrent: function (video, player) {
-                player.container.classList.add('dplayer-loading');
-                const client = new WebTorrent();
-                const torrentId = video.src;
-                client.add(torrentId, (torrent) => {
-                    const file = torrent.files.find((file) => file.name.endsWith('.mp4'));
-                    file.renderTo(
-                        video,
-                        {
-                            autoplay: player.options.autoplay,
-                        },
-                        () => {
-                            player.container.classList.remove('dplayer-loading');
-                        }
-                    );
-                });
-            },
+        type: 'webtorrent',
+    pluginOptions: {
+        webtorrent: {
+            // webtorrent config
         },
+    },
       },
     });
   }
