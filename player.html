@@ -36,14 +36,9 @@ function player(id, w) {
     var dp = new DPlayer({
       container: document.getElementById('ZsPlay'),
       video: {
-        url: 'magnet:?xt=urn:btih:1C4B106C5DA008CEBBAA214374775F41F5990371',
-        type: 'webtorrent',
-    pluginOptions: {
-        webtorrent: {
-            // webtorrent config
-        },
-    },
-      },
+        url: 'https://iqiyi.cdn9-okzy.com/20210227/22946_def440ea/index.m3u81',
+        type: 'hls',
+      }
     });
   }
 }
