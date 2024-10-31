@@ -23,11 +23,17 @@
             border-radius: 10px;
             background-color: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center; /* 整体居中 */
         }
 
         h1 {
-            text-align: center;
             color: #333;
+        }
+
+        /* 表单样式 */
+        .form-section {
+            text-align: left; /* 表单内容靠左 */
+            margin-bottom: 20px;
         }
 
         label {
@@ -35,7 +41,8 @@
         }
 
         input[type="text"],
-        input[type="tel"] {
+        input[type="tel"],
+        input[type="date"] {
             width: 100%;
             padding: 10px 0;
             margin: 5px 0 20px;
@@ -57,11 +64,32 @@
             background-color: #0056b3;
         }
 
+        /* 结果样式 */
         #result {
             margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
+            padding: 20px;
+            border: 1px solid #ffffff;
             border-radius: 5px;
+            background-color: #ffffff;
+        }
+
+        /* 外层div样式 */
+        .result-content {
+            text-align: left; /* 内容靠左 */
+            margin: 0 auto; /* 居中外层div */
+            max-width: max-content; /* 控制外层div的宽度 */
+        }
+
+        #result p {
+            margin: 5px 0;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        /* 二维码样式 */
+        #qrCanvas {
+            display: block;
+            margin: 20px auto; /* 居中二维码 */
         }
 
         .hidden {
@@ -72,7 +100,7 @@
 <body>
     <div class="container">
         <h1>访客登记</h1>
-        <form id="visitorForm">
+        <form id="visitorForm" class="form-section">
             <label for="name">姓名:</label>
             <input type="text" id="name" required>
 
@@ -88,21 +116,25 @@
             <label for="purpose">来访目的:</label>
             <input type="text" id="purpose" required>
 
-            <label for="visitTime">访问时间段:</label>
-            <input type="text" id="visitTime" required>
+            <label for="startDate">进入时间:</label>
+            <input type="date" id="startDate" required>
+
+            <label for="endDate">离开时间:</label>
+            <input type="date" id="endDate" required><br><br>
 
             <button type="button" id="submitBtn">提交</button>
         </form>
 
         <div id="result" class="hidden">
-            <h2>提交的内容</h2>
-            <p><strong>姓名:</strong> <span id="resultName"></span></p>
-            <p><strong>身份证:</strong> <span id="resultIdCard"></span></p>
-            <p><strong>手机号码:</strong> <span id="resultPhone"></span></p>
-            <p><strong>公司名称:</strong> <span id="resultCompany"></span></p>
-            <p><strong>来访目的:</strong> <span id="resultPurpose"></span></p>
-            <p><strong>访问时间段:</strong> <span id="resultVisitTime"></span></p>
-            <canvas id="qrCanvas"></canvas>
+            <div class="result-content">
+                <p><strong>姓名:</strong> <span id="resultName"></span></p>
+                <p><strong>身份证:</strong> <span id="resultIdCard"></span></p>
+                <p><strong>手机号码:</strong> <span id="resultPhone"></span></p>
+                <p><strong>公司名称:</strong> <span id="resultCompany"></span></p>
+                <p><strong>来访目的:</strong> <span id="resultPurpose"></span></p>
+                <p><strong>访问时间段:</strong> <span id="resultVisitTime"></span></p>
+            </div>
+        <canvas id="qrCanvas"></canvas>
         </div>
     </div>
 
@@ -114,14 +146,18 @@
                 const phone = $('#phone').val();
                 const company = $('#company').val();
                 const purpose = $('#purpose').val();
-                const visitTime = $('#visitTime').val();
+                const startDate = $('#startDate').val();
+                const endDate = $('#endDate').val();
 
                 $('#resultName').text(name);
                 $('#resultIdCard').text(idCard);
                 $('#resultPhone').text(phone);
                 $('#resultCompany').text(company);
                 $('#resultPurpose').text(purpose);
-                $('#resultVisitTime').text(visitTime);
+                $('#resultVisitTime').text(`从 ${startDate} 到 ${endDate}`);
+
+                // 隐藏表单并显示结果
+                $('#visitorForm').hide();
                 $('#result').removeClass('hidden');
 
                 const encodeIfChinese = (value) => {
@@ -134,7 +170,7 @@
                     phone: phone,
                     company: encodeIfChinese(company),
                     purpose: encodeIfChinese(purpose),
-                    visitTime: visitTime
+                    visitTime: { start: startDate, end: endDate }
                 };
 
                 const qrValue = JSON.stringify(formData);
