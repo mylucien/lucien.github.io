@@ -1,35 +1,103 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>访客登记表</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
 <body>
-<meta charset="UTF-8">
-<style type="text/css">
-    body,html{width:100%;height:100%;background:#000;padding:0;margin:0;overflow-x:hidden;overflow-y:hidden}
-    *{margin:0;border:0;padding:0;text-decoration:none}
-    #dplayer{position:inherit}
-</style>
-<div id="dplayer"></div>
-<script src="https://cdn.jsdelivr.net/npm/hls.js/dist/hls.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js"></script>
-<script>
-const dp = new DPlayer({
-    container: document.getElementById('dplayer'),
-    live: true,
-    danmaku: true,
-    apiBackend: {
-        read: function (options) {
-            console.log('Pretend to connect WebSocket');
-            options.success([]);
-        },
-        send: function (options) {
-            console.log('Pretend to send danmaku via WebSocket', options.data);
-            options.success();
-        },
-    },
-    video: {
-        url: 'http://m3u8.asdw.fun/?url=https://v4.cvhlscdn.com/20220623/M51SpQDH/hls/index.m3u8',
-        type: 'hls',
-    },
-});
-</script>
+    <h1>访客登记表</h1>
+    <form id="visitorForm">
+        <label for="name">姓名:</label><br>
+        <input type="text" id="name" required><br><br>
+
+        <label for="idCard">身份证:</label><br>
+        <input type="text" id="idCard" required><br><br>
+
+        <label for="phone">手机号码:</label><br>
+        <input type="tel" id="phone" required><br><br>
+
+        <label for="company">公司名称:</label><br>
+        <input type="text" id="company" required><br><br>
+
+        <label for="purpose">来访目的:</label><br>
+        <input type="text" id="purpose" required><br><br>
+
+        <label for="visitTime">访问时间段:</label><br>
+        <input type="text" id="visitTime" required><br><br>
+
+        <button type="button" id="submitBtn">提交</button>
+    </form>
+
+    <div id="result" class="hidden">
+        <h2>提交的内容</h2>
+        <p><strong>姓名:</strong> <span id="resultName"></span></p>
+        <p><strong>身份证:</strong> <span id="resultIdCard"></span></p>
+        <p><strong>手机号码:</strong> <span id="resultPhone"></span></p>
+        <p><strong>公司名称:</strong> <span id="resultCompany"></span></p>
+        <p><strong>来访目的:</strong> <span id="resultPurpose"></span></p>
+        <p><strong>访问时间段:</strong> <span id="resultVisitTime"></span></p>
+        <canvas id="qrCanvas"></canvas>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#submitBtn').click(function() {
+                const name = $('#name').val();
+                const idCard = $('#idCard').val();
+                const phone = $('#phone').val();
+                const company = $('#company').val();
+                const purpose = $('#purpose').val();
+                const visitTime = $('#visitTime').val();
+
+                // 显示提交的内容
+                $('#resultName').text(name);
+                $('#resultIdCard').text(idCard);
+                $('#resultPhone').text(phone);
+                $('#resultCompany').text(company);
+                $('#resultPurpose').text(purpose);
+                $('#resultVisitTime').text(visitTime);
+                $('#result').removeClass('hidden');
+
+                // 判断是否包含中文字符，并进行编码
+                const encodeIfChinese = (value) => {
+                    return /[\u4e00-\u9fa5]/.test(value) ? LZString.compressToEncodedURIComponent(value) : value;
+                };
+
+                // 生成二维码
+                const formData = {
+                    name: encodeIfChinese(name),
+                    idCard: idCard,
+                    phone: phone,
+                    company: encodeIfChinese(company),
+                    purpose: encodeIfChinese(purpose),
+                    visitTime: visitTime
+                };
+
+                // 直接使用JSON字符串
+                const qrValue = JSON.stringify(formData);
+                const qr = new QRious({
+                    element: document.getElementById('qrCanvas'),
+                    value: qrValue,
+                    size: 200
+                });
+            });
+        });
+    </script>
 </body>
 </html>
