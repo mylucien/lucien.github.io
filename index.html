@@ -3,56 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>访客登记表</title>
+    <title>访客登记</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
             padding: 20px;
             border: 1px solid #ccc;
             border-radius: 10px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="tel"] {
+            width: 100%;
+            padding: 10px 0;
+            margin: 5px 0 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
         .hidden {
             display: none;
         }
     </style>
 </head>
 <body>
-    <h1>访客登记表</h1>
-    <form id="visitorForm">
-        <label for="name">姓名:</label><br>
-        <input type="text" id="name" required><br><br>
+    <div class="container">
+        <h1>访客登记表</h1>
+        <form id="visitorForm">
+            <label for="name">姓名:</label>
+            <input type="text" id="name" required>
 
-        <label for="idCard">身份证:</label><br>
-        <input type="text" id="idCard" required><br><br>
+            <label for="idCard">身份证:</label>
+            <input type="text" id="idCard" required>
 
-        <label for="phone">手机号码:</label><br>
-        <input type="tel" id="phone" required><br><br>
+            <label for="phone">手机号码:</label>
+            <input type="tel" id="phone" required>
 
-        <label for="company">公司名称:</label><br>
-        <input type="text" id="company" required><br><br>
+            <label for="company">公司名称:</label>
+            <input type="text" id="company" required>
 
-        <label for="purpose">来访目的:</label><br>
-        <input type="text" id="purpose" required><br><br>
+            <label for="purpose">来访目的:</label>
+            <input type="text" id="purpose" required>
 
-        <label for="visitTime">访问时间段:</label><br>
-        <input type="text" id="visitTime" required><br><br>
+            <label for="visitTime">访问时间段:</label>
+            <input type="text" id="visitTime" required>
 
-        <button type="button" id="submitBtn">提交</button>
-    </form>
+            <button type="button" id="submitBtn">提交</button>
+        </form>
 
-    <div id="result" class="hidden">
-        <h2>提交的内容</h2>
-        <p><strong>姓名:</strong> <span id="resultName"></span></p>
-        <p><strong>身份证:</strong> <span id="resultIdCard"></span></p>
-        <p><strong>手机号码:</strong> <span id="resultPhone"></span></p>
-        <p><strong>公司名称:</strong> <span id="resultCompany"></span></p>
-        <p><strong>来访目的:</strong> <span id="resultPurpose"></span></p>
-        <p><strong>访问时间段:</strong> <span id="resultVisitTime"></span></p>
-        <canvas id="qrCanvas"></canvas>
+        <div id="result" class="hidden">
+            <h2>提交的内容</h2>
+            <p><strong>姓名:</strong> <span id="resultName"></span></p>
+            <p><strong>身份证:</strong> <span id="resultIdCard"></span></p>
+            <p><strong>手机号码:</strong> <span id="resultPhone"></span></p>
+            <p><strong>公司名称:</strong> <span id="resultCompany"></span></p>
+            <p><strong>来访目的:</strong> <span id="resultPurpose"></span></p>
+            <p><strong>访问时间段:</strong> <span id="resultVisitTime"></span></p>
+            <canvas id="qrCanvas"></canvas>
+        </div>
     </div>
 
     <script>
@@ -65,7 +116,6 @@
                 const purpose = $('#purpose').val();
                 const visitTime = $('#visitTime').val();
 
-                // 显示提交的内容
                 $('#resultName').text(name);
                 $('#resultIdCard').text(idCard);
                 $('#resultPhone').text(phone);
@@ -74,12 +124,10 @@
                 $('#resultVisitTime').text(visitTime);
                 $('#result').removeClass('hidden');
 
-                // 判断是否包含中文字符，并进行编码
                 const encodeIfChinese = (value) => {
                     return /[\u4e00-\u9fa5]/.test(value) ? LZString.compressToEncodedURIComponent(value) : value;
                 };
 
-                // 生成二维码
                 const formData = {
                     name: encodeIfChinese(name),
                     idCard: idCard,
@@ -89,7 +137,6 @@
                     visitTime: visitTime
                 };
 
-                // 直接使用JSON字符串
                 const qrValue = JSON.stringify(formData);
                 const qr = new QRious({
                     element: document.getElementById('qrCanvas'),
