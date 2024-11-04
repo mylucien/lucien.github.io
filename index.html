@@ -105,12 +105,12 @@
             <label for="phone">手机号码:</label>
             <input type="tel" id="phone" required placeholder="请输入11位手机号码">
 
-            <label for="company">公司名称:</label>
+            <label for="company">单位名称:</label>
             <input type="text" id="company" required>
 
             <label for="purpose">来访目的:</label>
             <select id="purpose" required>
-                <option value="">请选择来访目的</option>
+                <option value="">请选择</option>
                 <option value="参观">参观</option>
                 <option value="维护">维护</option>
                 <option value="施工">施工</option>
@@ -153,13 +153,13 @@
                     return;
                 }
 
-                // 验证身份证格式
-                const idCardRegex = /^\d{17}(\d|X)$/;
+                // 验证身份证格式（支持最后一位为X）
+                const idCardRegex = /^\d{17}([0-9]|X)$/i;
                 if (!idCardRegex.test(idCard)) {
                     alert('请输入有效的身份证号码');
                     return;
                 }
-
+                
                 // 隐藏身份证中间6位
                 const maskedIdCard = idCard.replace(/(.{6})(.*)(.{6})/, '$1******$3');
                 // 隐藏手机号码中间4位
