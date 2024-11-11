@@ -70,7 +70,7 @@
             border: none;
             font-size: 14px;
             color: black;
-            padding: 0 10px;
+            padding: 0 5px;
             text-align: right; /* 文本右对齐 */
         }
         .form-option {
@@ -90,8 +90,8 @@
             color: #ccc;
         }
         .submit-btn {
-            width: calc(100% - 120px);
-            margin: 20px 60px;
+            width: calc(100% - 90px);
+            margin: 20px 45px;
             padding: 12px;
             background: #009688;
             color: white;
@@ -140,7 +140,7 @@
             -moz-appearance: none;
             background-color: #ffffff; /* 可选择背景颜色 */
             border: none; /* 自定义边框颜色 */
-            margin-left: auto; /* 将下拉框推到右侧 */
+            text-align: right; /* 文本右对齐 */
             width: auto;
             font-size: 14px;
             font-family: 'Microsoft YaHei', sans-serif; /* 设置字体为微软雅黑 */
@@ -182,7 +182,7 @@
             background-color: white;
             margin: 15px auto;
             padding: 10px;
-            width: 110%; /* 弹窗宽度 */
+            width: 100%; /* 弹窗宽度 */
             max-width: 355px; /* 弹窗最大宽度 */
             height: 600px;
             overflow-y: auto; /* 启用竖向滚动条 */
@@ -268,7 +268,7 @@
             <!-- 新增来访时间 -->
             <div class="form-item">
                 <div class="form-label">来访时间</div>
-                <input type="datetime-local" id="startDate" class="form-input">
+                <input type="datetime-local" id="startDate" class="form-input" placeholder="请选择来访时间">
             </div>
             
             <button id="submitBtn" class="submit-btn">提交信息</button>
