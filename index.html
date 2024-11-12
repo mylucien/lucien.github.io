@@ -24,24 +24,36 @@
             background-position: center top; /* 背景图居中对齐 */
             background-repeat: no-repeat; /* 防止背景图重复 */
         }
-        .container {
-            top: 53%;
-            width: auto;
-            margin: 0 auto;  /* 向下移动100px，同时保证容器水平居中 */
-            border-radius: 0px;  /* 为容器的四个角添加圆角 */
-            background-color: rgba(235, 233, 233, 0.65); /* 背景透明，白色背景，透明度50% */
+        /* 顶部透明层 */
+        .top-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background-color: rgba(255, 255, 255, 0); /* 完全透明 */
+            /* background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 60%, rgba(235, 233, 233, 0.65) 40%);*/
+            /* background-color: rgba(235, 233, 233, 0.65); /* 背景透明，白色背景，透明度50% */
+            pointer-events: none; /* 避免遮挡鼠标事件 */
+            z-index: 1; /* 确保覆盖在上层 */
             position: relative;
-            overflow: hidden;  /* 确保圆角效果不被遮挡 */
+        }
+        /* 底部半透明层 */
+        .bottom-overlay {
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background-color: rgba(235, 233, 233, 0.65); /* 背景透明，白色背景，透明度50% */
         }
         .header {
             padding: 10px;
             text-align: center;
         }
         .welcome-text {
-            margin: 0 auto 10px auto;
+            margin: 0 auto 0 auto;
             width: calc(100% - 60px);
             color: #333;
-            font-size: 14px;
+            font-size: 13px;
             padding: 10px; /* padding 只会在内容内部空出 */
             line-height: 2;
             text-align: left;
@@ -225,7 +237,8 @@
 </head>
 <body>
     <div class="backgroundimage">
-        <div class="container">
+        <div class="top-overlay"></div>
+        <div class="bottom-overlay">
             <div class="header">
                 <h2 style="margin: 0 0 5px; font-size: 18px;">AIDC沙河智算中心</h2>
                 <div style="font-size: 13px; color: #555555; font-weight: bold;">SheHe Artificial Intelligent  Data Center</div>
