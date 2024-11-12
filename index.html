@@ -91,48 +91,6 @@
             background-color: #ffffff; /* 可选择背景颜色 */
             font-family: 'Microsoft YaHei', sans-serif; /* 设置字体为微软雅黑 */
         }
-
-        /* 重置默认样式 */
-        input[type="time"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 100%;
-            max-width: 200px;
-            height: 40px;
-            padding: 0 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: #fff;
-            font-size: 14px;
-            color: #333;
-            text-align: right; /* 文字靠右对齐 */
-            direction: rtl; /* 确保在某些浏览器中也能靠右 */
-        }
-        /* 处理IOS的特殊样式 */
-        @supports (-webkit-touch-callout: none) {
-            input[type="time"] {
-                text-align: right;
-                direction: ltr; /* IOS需要保持ltr才能正常显示 */
-            }
-        }
-        /* 处理时间选择器的小图标 */
-        input[type="time"]::-webkit-calendar-picker-indicator {
-            margin-left: 0;
-            margin-right: auto; /* 图标靠左 */
-        }
-        /* 修复某些Android浏览器的显示问题 */
-        input[type="time"]::-webkit-datetime-edit {
-            text-align: right;
-            padding-right: 5px;
-        }
-        /* 容器样式 */
-        .time-input-container {
-            margin: 20px;
-            display: flex;
-            justify-content: flex-end;
-        }
-
         .form-option {
             text-align: right; /* 文本左对齐 */
         }
