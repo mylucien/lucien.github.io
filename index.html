@@ -91,6 +91,7 @@
             background-color: #ffffff; /* 可选择背景颜色 */
             font-family: 'Microsoft YaHei', sans-serif; /* 设置字体为微软雅黑 */
         }
+
         .form-option {
             text-align: right; /* 文本左对齐 */
         }
@@ -287,7 +288,14 @@
         <!-- 新增来访时间 -->
         <div class="form-item">
             <div class="form-label">来访时间</div>
-            <input type="datetime-local" class="form-input">
+            <table style="width: 200px;">
+                <tr>
+                    <td style="width: 100%;">
+                        <input type="datetime-local" style="width: 100%; text-align: right;">
+                    </td>
+                </tr>
+            </table>
+            <!--<input type="datetime-local" class="form-input">-->
         </div>
         
         <button id="submitBtn" class="submit-btn">提交信息</button>
