@@ -1,1356 +1,1609 @@
-/*!
+/**
  * cxCalendar
- * 
- * @version 2.0.3
+ * @version 3.0.0
  * @author ciaoca
  * @email ciaoca@gmail.com
  * @site https://github.com/ciaoca/cxCalendar
  * @license Released under the MIT license
  */
-(function(factory) {
-  if (typeof define === 'function' && define.amd) {
-    define(['jquery'], factory);
-  } else {
-    factory(window.jQuery || window.Zepto || window.$);
-  };
-}(function($) {
-  var cxCalendar = {
-    dom: {},
-    reg: {
-      isYear: /^\d{4}$/,
-      isTime: /^\d{1,2}(\:\d{1,2}){1,2}$/
-    },
-    settings: {},
-    cacheDate: {},
-    isElement: function(o) {
-      if (o && (typeof HTMLElement === 'function' || typeof HTMLElement === 'object') && o instanceof HTMLElement) {
-        return true;
-      } else {
-        return (o && o.nodeType && o.nodeType === 1) ? true : false;
-      };
-    },
-    isJquery: function(o) {
-      return (o && o.length && (typeof jQuery === 'function' || typeof jQuery === 'object') && o instanceof jQuery) ? true : false;
-    },
-    isZepto: function(o) {
-      return (o && o.length && (typeof Zepto === 'function' || typeof Zepto === 'object') && Zepto.zepto.isZ(o)) ? true : false;
-    },
-    isInteger: function(value) {
-      return typeof value === 'number' && !isNaN(value) && /^\d+$/.test(value);
-    },
-    isPlainObject: function (obj) {
-      if (typeof obj !== 'object' || obj.nodeType || obj !== null && obj !== undefined && obj === obj.window) {
-        return false;
-      };
+(function (global, factory) {
+typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+typeof define === 'function' && define.amd ? define(factory) :
+(global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.cxCalendar = factory());
+})(this, (function () { 'use strict';
 
-      if (obj.constructor && !Object.prototype.hasOwnProperty.call(obj.constructor.prototype, 'isPrototypeOf')) {
-        return false;
-      };
+const theTool = {
+  dom: {},
+  reg: {
+    isYear: /^\d{4}$/,
+    isTime: /^\d{1,2}(\:\d{1,2}){1,2}$/
+  },
+  cacheDate: {},
+  cxId: 1,
+  bindFuns: {},
 
+  isElement: function(o) {
+    if (o && (typeof HTMLElement === 'function' || typeof HTMLElement === 'object') && o instanceof HTMLElement) {
       return true;
-    },
-    isDateObject: function(obj) {
-      return Object.prototype.toString.call(obj) === '[object Date]' && typeof obj.getTime === 'function' && !isNaN(obj.getTime());
-    },
-  };
-
-  // 补充前置零
-  cxCalendar.fillLeadZero = function(value, num) {
-    var str = String(value);
-
-    if (str.length < num) {
-      str = Array(num - str.length).fill(0).join('') + value;
-    };
-
-    return str;
-  };
-
-  // 获取当年每月的天数
-  cxCalendar.getMonthDays = function(year) {
-    var leapYearDay = ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 1 : 0;
-
-    return [31, 28 + leapYearDay, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  };
-
-  // 获取周数
-  cxCalendar.getWeekNum = function(dateObj) {
-    var self = this;
-    var curTime = dateObj.getTime();
-    var yearFirstDate = new Date(dateObj.getFullYear(), 0, 1, 0, 0, 0, 0);
-    var weekFirstTime = yearFirstDate.getTime();
-    var weekDay = yearFirstDate.getDay();
-    var weekNum = 0;
-
-    if (weekDay === 0) {
-      weekDay = 7;
-    };
-
-    var weekOffset = weekDay > 4 ? -1 : 0;
-
-    if (weekDay > 4) {
-      weekFirstTime += (8 - weekDay) * 86400000;
     } else {
-      weekFirstTime += (1 - weekDay) * 86400000;
-    };
+      return (o && o.nodeType && o.nodeType === 1) ? true : false;
+    }  },
+  isInteger: function(value) {
+    if (typeof value === 'string' && /^\-?\d+$/.test(value)) {
+      value = parseInt(value, 10);
+    }    return typeof value === 'number' && isFinite(value);
+  },
+  isObject: function(value) {
+    if (value === undefined || value === null || Object.prototype.toString.call(value) !== '[object Object]') {
+      return false;
+    }
+    if (value.constructor && !Object.prototype.hasOwnProperty.call(value.constructor.prototype, 'isPrototypeOf')) {
+      return false;
+    }
+    return true;
+  },
+  isDate: function(value) {
+    return (value instanceof Date || Object.prototype.toString.call(value) === '[object Date]') && isFinite(value.getTime());
+  },
+};
 
-    if (curTime < weekFirstTime) {
-      weekNum = self.getWeekNum(new Date(dateObj.getFullYear() - 1, 11, 31));
-    } else {
-      weekNum = Math.floor((curTime - weekFirstTime) / 86400000) + 1;
-      weekNum = Math.ceil(weekNum / 7);
-    };
+// 合并对象
+theTool.extend = function(target, ...sources) {
+  const self = this;
 
-    return weekNum;
-  };
+  if (!self.isObject(target)) {
+    return;
+  }
+  for (let x of sources) {
+    if (!self.isObject(x)) {
+      continue;
+    }
+    for (let y in x) {
+      if (Array.isArray(x[y])) {
+        target[y] = [].concat(x[y]);
 
-  /**
-   * 解析日期
-   * 默认解析 ISO 8601 格式
-   * 其他支持格式:
-   * y
-   * y-m
-   * y-m-d
-   * y-m-d h:i
-   * y-m-d h:i:s
-   * m-d
-   * m-d h:i
-   * m-d h:i:s
-   * h:i
-   * h:i:s
-   * 连接符 '-' 可替换为 '.' 或 '/'
-  **/
-  cxCalendar.parseDate = function(value, mustDef) {
-    var self = this;
-    var theDate = new Date();
-    var tags;
-
-    if (self.reg.isYear.test(value)) {
-      theDate.setFullYear(parseInt(value, 10));
-
-    } else if (/^\d+$/.test(value) || (typeof value === 'number' && isFinite(value))) {
-      theDate.setTime(parseInt(value, 10));
-
-    } else if (typeof value === 'string') {
-      if (self.reg.isTime.test(value)) {
-        tags = value.split(':');
-
-        if (tags.length === 2) {
-          tags.push(0);
-        };
-
-        theDate.setHours(tags[0], tags[1], tags[2]);
+      } else if (self.isObject(x[y])) {
+        if (!self.isObject(target[y])) {
+          target[y] = {};
+        }        self.extend(target[y], x[y]);
 
       } else {
-        value = value.replace(/[\.\/]/g, '-');
+        target[y] = x[y];
+      }    }  }
+  return target;
+};
 
-        if (/^\d{1,2}-\d{1,2}/.test(value)) {
-          value = theDate.getFullYear() + '-' + value;
-        } else if (/^\d{4}-\d{1,2}$/.test(value)) {
-          value += '-1';
-        };
+// 补充前置零
+theTool.fillLeadZero = function(value, num) {
+  let str = String(value);
 
-        tags = value.split(/[\-\sT\:]/);
-        tags[1] = parseInt(tags[1], 10) - 1;
+  if (str.length < num) {
+    str = Array(num - str.length).fill(0).join('') + value;
+  }
+  return str;
+};
 
-        if (tags.length === 5) {
-          tags.push(0);
-        };
+// 获取当年每月的天数
+theTool.getMonthDays = function(year) {
+  const leapYearDay = ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0) ? 1 : 0;
+  return [31, 28 + leapYearDay, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+};
 
-        theDate.setFullYear.apply(theDate, tags);
+// 获取周数
+theTool.getWeekNum = function(dateObj) {
+  const self = this;
+  const curTime = dateObj.getTime();
+  const yearFirstDate = new Date(dateObj.getFullYear(), 0, 1, 0, 0, 0, 0);
+  let weekFirstTime = yearFirstDate.getTime();
+  let weekDay = yearFirstDate.getDay();
+  let weekNum = 0;
 
-        if (tags.length > 3) {
-          theDate.setHours.apply(theDate,tags.slice(3));
-        };
-      };
+  if (weekDay === 0) {
+    weekDay = 7;
+  }
+  if (weekDay > 4) {
+    weekFirstTime += (8 - weekDay) * 86400000;
+  } else {
+    weekFirstTime += (1 - weekDay) * 86400000;
+  }
+  if (curTime < weekFirstTime) {
+    weekNum = self.getWeekNum(new Date(dateObj.getFullYear() - 1, 11, 31));
+  } else {
+    weekNum = Math.floor((curTime - weekFirstTime) / 86400000) + 1;
+    weekNum = Math.ceil(weekNum / 7);
+  }
+  return weekNum;
+};
+
+/**
+ * 解析日期
+ * 默认支持 ISO 8601 格式，和以下格式
+ * y
+ * y-m
+ * y-m-d
+ * y-m-d h:i
+ * y-m-d h:i:s
+ * m-d
+ * m-d h:i
+ * m-d h:i:s
+ * h:i
+ * h:i:s
+ * 
+ * 日期连接符 '-' 可替换为 '.' 或 '/'
+**/
+theTool.parseDate = function(value, mustDef) {
+  const self = this;
+  let theDate = new Date();
+
+  if (self.reg.isYear.test(value)) {
+    theDate.setFullYear(parseInt(value, 10));
+
+  } else if (self.isInteger(value)) {
+    theDate.setTime(parseInt(value, 10));
+
+  } else if (typeof value === 'string' && value.length) {
+    let tags;
+
+    if (self.reg.isTime.test(value)) {
+      tags = value.split(':').map((x) => {
+        return parseInt(x, 10);
+      });
+
+      if (tags.length < 4) {
+        tags = tags.concat(Array(4 - tags.length).fill(0));
+      } else if (tags.length > 4) {
+        tags.length = 4;
+      }
+      theDate.setHours.apply(theDate, tags);
 
     } else {
-      if (mustDef === true) {
-        return theDate;
-      } else {
-        return null;
-      };
-    };
+      value = value.replace(/[\.\/]/g, '-');
+      if (/^\d{1,2}-\d{1,2}/.test(value)) {
+        value = theDate.getFullYear() + '-' + value;
+      } else if (/^\d{4}-\d{1,2}$/.test(value)) {
+        value += '-1';
+      }
+      tags = value.split(/[\-\sT\:]/).map((x) => {
+        return parseInt(x, 10);
+      });
 
-    if (!self.isDateObject(theDate) || isNaN(theDate.getTime())) {
-      if (mustDef === true) {
-        theDate = new Date();
-      } else {
-        theDate = null;
-      };
-    };
+      if (tags.length > 1) {
+        tags[1] -= 1;
+      }
+      if (tags.length < 7) {
+        tags = tags.concat(Array(7 - tags.length).fill(0));
+      } else if (tags.length > 7) {
+        tags.length = 7;
+      }
+      theDate.setFullYear.apply(theDate, tags.slice(0, 3));
+      theDate.setHours.apply(theDate, tags.slice(3));
+    }
+  } else {
+    theDate = null;
+  }
+  if (mustDef === true && !self.isDate(theDate)) {
+    theDate = new Date();
+  }
+  return theDate;
+};
 
-    return theDate;
+// 格式化日期值
+theTool.formatDate = function(style, time) {
+  const self = this;
+  const theDate = self.parseDate(time);
+
+  if (typeof style !== 'string' || !self.isDate(theDate)) {
+    return time;
+  }
+  const attr = {
+    Y: theDate.getFullYear(),
+    n: theDate.getMonth() + 1,
+    j: theDate.getDate(),
+    G: theDate.getHours(),
+    timestamp: theDate.getTime(),
   };
 
-  // 格式化日期值
-  cxCalendar.formatDate = function(style, time) {
-    var self = this;
-    var date = self.parseDate(time);
-    var attr = {};
+  attr.y = attr.Y.toString(10).slice(-2);
+  attr.m = self.fillLeadZero(attr.n, 2);
+  attr.d = self.fillLeadZero(attr.j, 2);
+  attr.W = self.getWeekNum(theDate);
 
-    if (!date || typeof style !== 'string') {
-      return time;
-    };
+  attr.H = self.fillLeadZero(attr.G, 2);
+  attr.g = attr.G > 12 ? attr.G - 12 : attr.G;
+  attr.h = self.fillLeadZero(attr.g, 2);
+  attr.i = self.fillLeadZero(theDate.getMinutes(), 2);
+  attr.s = self.fillLeadZero(theDate.getSeconds(), 2);
+  attr.a = attr.G > 12 ? cacheApi.language.pm - 12 : attr.am;
 
-    attr.Y = date.getFullYear();
-    attr.y = attr.Y.toString(10).slice(-2);
-    attr.n = date.getMonth() + 1;
-    attr.m = self.fillLeadZero(attr.n, 2);
-    attr.j = date.getDate();
-    attr.d = self.fillLeadZero(attr.j, 2);
+  const keys = ['timestamp', 'Y', 'y', 'm', 'n', 'd', 'j', 'W', 'H', 'h', 'G', 'g', 'i', 's', 'a'];
+  const reg = new RegExp('(' + keys.join('|') + ')', 'g');
+  let str = style;
 
-    attr.G = date.getHours();
-    attr.H = self.fillLeadZero(attr.G, 2);
-    attr.g = attr.G > 12 ? attr.G - 12 : attr.G;
-    attr.h = self.fillLeadZero(attr.g, 2);
-    attr.i = self.fillLeadZero(date.getMinutes(), 2);
-    attr.s = self.fillLeadZero(date.getSeconds(), 2);
+  // 转义边界符号
+  str = str.replace(/([\{\}])/g, '\\$1');
 
-    attr.timestamp = date.getTime();
+  // 转义关键词
+  str = str.replace(reg, (match, p1) => {
+    return '{{' + p1 + '}}';
+  });
 
-    var str = style;
-    var keys = ['timestamp','Y','y','m','n','d','j','H','h','G','g','i','s'];
-    var reg = new RegExp('(' + keys.join('|') + ')', 'g');
+  // 还原转义字符
+  str = str.replace(/\\\{\{(.)\}\}/g, '$1');
 
-    // 转义边界符号
-    str = str.replace(/([\{\}])/g, '\\$1');
+  // 替换关键词
+  for (let x of keys) {
+    str = str.replace(new RegExp('{{' + x + '}}', 'g'), attr[x]);
+  }
+  // 还原转义内容
+  str = str.replace(/\\(.)/g, '$1');
 
-    // 转义关键词
-    str = str.replace(reg, function(match, p1) {
-      return '{{' + p1 + '}}';
-    });
+  return str;
+};
 
-    // 还原转义字符
-    str = str.replace(/\\\{\{(.)\}\}/g, '$1');
+// 获取语言配置
+theTool.getLanguage = function(name) {
+  const self = this;
 
-    // 替换关键词
-    for (var i = keys.length - 1; i >= 0; i--) {
-      str = str.replace(new RegExp('{{' + keys[i] + '}}', 'g'), attr[keys[i]]);
-    };
+  if (self.isObject(name)) {
+    return name;
+  }
+  if (typeof name !== 'string' || !name.length) {
+    if (typeof navigator.language === 'string') {
+      name = navigator.language;
+    } else if (typeof navigator.browserLanguage === 'string') {
+      name = navigator.browserLanguage;
+    }  }
+  if (typeof name === 'string') {
+    name = name.toLowerCase();
+  }
+  if (typeof name === 'string' && name.length && typeof cxCalendar.languages[name] === 'object') {
+    return cxCalendar.languages[name];
+  } else {
+    return cxCalendar.languages['default'];
+  }};
 
-    // 还原转义内容
-    str = str.replace(/\\(.)/g, '$1');
+theTool.init = function() {
+  const self = this;
 
-    return str;
-  };
+  self.buildStage();
+  self.bindEvent();
+};
 
-  cxCalendar.init = function() {
-    var self = this;
+// 构建选择器
+theTool.buildStage = function() {
+  const self = this;
 
-    self.dom.pane = $('<div></div>', {'class': 'cxcalendar'});
-    self.dom.head = $('<div></div>', {'class': 'cxcalendar_hd'});
-    self.dom.main = $('<div></div>', {'class': 'cxcalendar_bd'}).appendTo(self.dom.pane);
-    self.dom.acts = $('<div></div>', {'class': 'cxcalendar_acts'});
-    self.dom.blockBg = $('<div></div>', {'class': 'cxcalendar_lock'});
+  self.dom.maskBg = document.createElement('div');
+  self.dom.maskBg.classList.add('cxcalendar_mask');
 
-    self.dom.yearSelect = $('<select></select>', {'class': 'year'});
-    self.dom.monthSelect = $('<select></select>', {'class': 'month'});
+  self.dom.panel = document.createElement('div');
+  self.dom.panel.classList.add('cxcalendar');
 
-    self.dom.dateSet = $('<ul></ul>');
-    self.dom.timeSet = $('<div></div>', {'class': 'times'});
+  self.dom.head = document.createElement('div');
+  self.dom.head.classList.add('cxcalendar_hd');
 
-    self.dom.hourSelect = $('<select></select>', {'class': 'hour'});
-    self.dom.mintSelect = $('<select></select>', {'class': 'mint'});
-    self.dom.secsSelect = $('<select></select>', {'class': 'secs'});
+  self.dom.main = document.createElement('div');
+  self.dom.main.classList.add('cxcalendar_bd');
 
-    self.dom.timeSet.append(self.dom.hourSelect).append('<i></i>').append(self.dom.mintSelect).append('<i></i>').append(self.dom.secsSelect).append('<a class="confirm" href="javascript://" rel="confirm"></a>');
+  self.dom.acts = document.createElement('div');
+  self.dom.acts.classList.add('cxcalendar_acts');
 
-    document.addEventListener('DOMContentLoaded', function() {
-      $('body').append(self.dom.pane).append(self.dom.blockBg);
-    });
+  self.dom.dateSet = document.createElement('div');
 
-    // 关闭面板
-    self.dom.blockBg.on('click', function() {
-      self.hidePane();
-    });
+  self.dom.timeSet = document.createElement('div');
+  self.dom.timeSet.classList.add('times');
 
-    self.dom.pane.on('click', 'a', function(event) {
+  self.dom.panel.insertAdjacentElement('beforeend', self.dom.main);
+  document.body.insertAdjacentElement('beforeend', self.dom.panel);
+  self.dom.panel.insertAdjacentElement('afterend', self.dom.maskBg);
+};
+
+// 绑定事件
+theTool.bindEvent = function() {
+  const self = this;
+
+  // 关闭面板
+  self.dom.maskBg.addEventListener('click', () => {
+    self.hidePanel();
+  });
+
+  self.dom.panel.addEventListener('click', (e) => {
+    const el = e.target;
+    const nodeName = el.nodeName.toLowerCase();
+
+    if (nodeName === 'a' && el.rel) {
       event.preventDefault();
-      var _this = this;
 
-      switch (_this.rel) {
+      switch (el.rel) {
+        // 上个月
         case 'prev':
           self.gotoPrev();
           break;
 
+        // 下个月
         case 'next':
           self.gotoNext();
           break;
 
+        // 今日
         case 'today':
-          self.hidePane();
-          self.setDate(new Date().getTime());
+          self.hidePanel();
+          cacheApi.setDate(new Date().getTime());
           break;
 
+        // 清除
         case 'clear':
-          self.hidePane();
-          self.clearDate();
+          self.hidePanel();
+          cacheApi.clearDate();
           break;
 
+        // 确认
         case 'confirm':
-          var _value;
-
-          if (self.settings.type === 'datetime' && typeof self.cacheDate.txt === 'string' && self.cacheDate.txt.length) {
-            _value = self.cacheDate.txt;
-
+          self.hidePanel();
+          if (cacheApi.settings.mode === 'range') {
+            self.confirmRange();
           } else {
-            _value = [self.defDate.year, self.defDate.month, self.defDate.day].join('-');
-          };
-
-          _value += ' ' + [self.dom.hourSelect.val(), self.dom.mintSelect.val(), self.dom.secsSelect.val()].join(':');
-
-          self.hidePane();
-          self.setDate(_value);
-          break;
-
-        // not undefined
-      };
-    });
-
-    // 选择年月
-    self.dom.pane.on('change', 'select', function() {
-      var _this = this;
-      var name = _this.getAttribute('class') || _this.getAttribute('classname');
-
-      if (name === 'year' || name === 'month') {
-        if (name === 'year' && (self.settings.type === 'date' || self.settings.type === 'datetime')) {
-          self.rebulidMonthSelect();
-        };
-
-        self.gotoDate();
-      };
-    });
-
+            self.confirmTime();
+          }          break;
+      }
     // 选择日期
-    self.dom.pane.on('click', 'li', function() {
-      var li = $(this);
-      var date = li.data('date');
+    } else if (nodeName === 'li' && el.dataset.date) {
+      let dateText = el.dataset.date;
 
-      if (!date) {return};
-
-      li.addClass('selected').siblings('li').removeClass('selected');
-
-      if (self.settings.type === 'datetime') {
-        var dateSp = date.split('-');
-
-        self.cacheDate = {
-          year: parseInt(dateSp[0], 10),
-          month: parseInt(dateSp[1], 10),
-          day: parseInt(dateSp[2], 10),
-          txt: date
-        };
+      if (typeof dateText !== 'string' || !dateText.length) {
         return;
-      };
+      }
+      for (let x of el.parentNode.parentNode.querySelectorAll('li')) {
+        x.classList.remove('selected');
+      }      el.classList.add('selected');
 
-      if (self.settings.type === 'month') {
-        date += '-1';
-      };
+      // 范围选择，需手动确认
+      if (cacheApi.settings.mode === 'range') {
+        const theTime = self.parseDate(dateText).getTime();
 
-      self.hidePane();
-      self.setDate(date);
-    });
-  };
+        if (typeof self.cacheDate.startTime !== 'number' || self.cacheDate.startTime >= theTime || typeof self.cacheDate.endTime === 'number') {
+          self.cacheDate.startTime = theTime;
+          delete self.cacheDate.endTime;
+          el.classList.add('start');
+          return;
+        }
+        self.cacheDate.endTime = theTime;
+        self.gotoDate();
+        return;
+      }
+      // 时间选择，需手动确认
+      if (cacheApi.settings.type === 'datetime') {
+        self.cacheDate.time = self.parseDate(dateText).getTime();
+        return;
+      }
+      self.hidePanel();
+      cacheApi.setDate(dateText);
+    }  });
 
-  // 获取语言配置
-  cxCalendar.getLanguage = function(name) {
-    var self = this;
+  // 选择年月
+  self.dom.panel.addEventListener('change', (e) => {
+    const el = e.target;
+    const nodeName = el.nodeName.toLowerCase();
 
-    if (self.isPlainObject(name)) {
-      return name;
+    if (nodeName === 'select' && ['year', 'month'].indexOf(el.name) >= 0) {
+      self.gotoDate();
+    }  });
+};
+
+// 获取内部选框控件
+theTool.getSelects = function(list, values) {
+  const self = this;
+  const selects = {};
+
+  for (let x of self.dom.head.querySelectorAll('select')) {
+    if (list.indexOf(x.name) >= 0) {
+      selects[x.name] = x;
+
+      if (self.isObject(values)) {
+        values[x.name] = parseInt(x.value, 10);
+      }    }  }
+  return selects;
+};
+
+// 创建面板
+theTool.buildPanel = function() {
+  const self = this;
+
+  if (cacheApi.settings.date) {
+    self.cacheDate = {
+      time: cacheApi.defDate.time,
     };
 
-    if (typeof name !== 'string') {
-      if (typeof navigator.language === 'string') {
-        name = navigator.language;
-      } else if (typeof navigator.browserLanguage === 'string') {
-        name = navigator.browserLanguage;
-      };
-    };
+    if (typeof cacheApi.defDate.start === 'number' && typeof cacheApi.defDate.end === 'number') {
+      self.cacheDate.startTime = cacheApi.defDate.start;
+      self.cacheDate.endTime = cacheApi.defDate.end;
+    }
+  } else {
+    self.cacheDate = {};
+  }
+  self.dom.head.innerHTML = '';
+  self.dom.main.innerHTML = '';
 
-    if (typeof name === 'string') {
-      name = name.toLowerCase();
-    };
+  // 基础样式
+  const classValue = ['cxcalendar', 'm_' + cacheApi.settings.type];
 
-    if (typeof name === 'string' && typeof $.cxCalendar.languages[name] === 'object') {
-      return $.cxCalendar.languages[name];
-    } else {
-      return $.cxCalendar.languages['default'];
-    };
-  };
+  if (cacheApi.settings.mode === 'range') {
+    classValue.push('range');
+  }
+  if (typeof cacheApi.settings.baseClass === 'string' && cacheApi.settings.baseClass.length) {
+    classValue.push(cacheApi.settings.baseClass);
+  }
+  self.dom.panel.className = classValue.join(' ');
 
-  // 配置参数
-  cxCalendar.setOptions = function(opts) {
-    var self = this;
-    var now = new Date();
-    var minDate;
-    var maxDate;
-    var defDate;
+  const splitHtml = '<em></em>';
+  const prevNextHtml = '<a class="prev" href="javascript://" rel="prev"></a><a class="next" href="javascript://" rel="next"></a>';
+  const fillHtml = cacheApi.settings.mode === 'range' ? '<section class="fill"></section>' : '';
+  let html = '<section>';
 
-    if (self.isPlainObject(opts)) {
-      self.settings = $.extend({}, $.cxCalendar.defaults, opts);
-    };
+  // 年份选择框
+  if (['month', 'date', 'datetime'].indexOf(cacheApi.settings.type) >= 0) {
+    html += '<select name="year" class="year">';
 
-    // 结束日期（默认为当前日期）
-    if (self.reg.isYear.test(self.settings.endDate)) {
-      maxDate = new Date(self.settings.endDate, 11, 31);
-    } else {
-      maxDate = self.parseDate(self.settings.endDate, true);
-    };
+    for (let i = cacheApi.minDate.year; i <= cacheApi.maxDate.year; i++) {
+      html += '<option value="' + i + '">' + i + '</option>';
+    }
+    html += '</select>';
 
-    maxDate.setHours(23, 59, 59);
+  } else if (cacheApi.settings.type === 'year') {
+    let start = Math.floor(cacheApi.minDate.year / 10) * 10;
 
-    self.maxDate = {
-      year: maxDate.getFullYear(),
-      month: maxDate.getMonth() + 1,
-      day: maxDate.getDate(),
-      time: maxDate.getTime()
-    };
+    html += '<select name="year" class="year">';
 
-    // 起始日期（默认为当前日期的前一年）
-    if (self.reg.isYear.test(self.settings.startDate)) {
-      minDate = new Date(self.settings.startDate, 0, 1);
-    } else {
-      minDate = self.parseDate(self.settings.startDate);
-    };
+    for (let i = start; i <= cacheApi.maxDate.year; i += cacheApi.settings.yearNum) {
+      let end = i + cacheApi.settings.yearNum - 1;
+      html += '<option value="' + i + '">' + i + ' - ';
+      // html += end < cacheApi.maxDate.year ? end : cacheApi.maxDate.year;
+      html += end;
+      html += '</option>';
+    }
+    html += '</select>';
+  }
+  if (['date', 'datetime'].indexOf(cacheApi.settings.type) >= 0) {
+    html += splitHtml;
+    html += '<select name="month" class="month"></select>';
+    html += splitHtml;
+    html += '</section>';
+    html += fillHtml;
+    html += prevNextHtml;
 
-    if (!self.isDateObject(minDate)) {
-      minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - 1);
-    };
+    self.dom.head.innerHTML = html;
+    self.dom.dateSet.className = 'days';
 
-    // 若超过结束日期，则设为结束日期的前一年
-    if (minDate.getTime() > self.maxDate.time) {
-      minDate = new Date(self.maxDate.year - 1, self.maxDate.month - 1, self.maxDate.day);
-    };
+    self.dom.main.insertAdjacentElement('beforeend', self.dom.dateSet);
+    self.dom.panel.insertAdjacentElement('afterbegin', self.dom.head);
 
-    minDate.setHours(0, 0, 0, 0);
-
-    self.minDate = {
-      year: minDate.getFullYear(),
-      month: minDate.getMonth() + 1,
-      day: minDate.getDate(),
-      time: minDate.getTime()
-    };
-
-    // 默认日期
-    defDate = self.parseDate(self.settings.date, true);
-
-    if (defDate.getTime() < self.minDate.time) {
-      defDate = self.parseDate(self.minDate.time, true);
-    } else if (defDate.getTime() > self.maxDate.time) {
-      defDate = self.parseDate(self.maxDate.time, true);
-    };
-
-    self.defDate = {
-      year: defDate.getFullYear(),
-      month: defDate.getMonth() + 1,
-      day: defDate.getDate(),
-      hour: defDate.getHours(),
-      mint: defDate.getMinutes(),
-      secs: defDate.getSeconds(),
-      time: defDate.getTime()
-    };
-
-    // 星期的起始位置
-    self.settings.wday %= 7;
-    self.settings.saturday = 6 - self.settings.wday;
-    self.settings.sunday = (7 - self.settings.wday) % 7;
-
-    // 语言配置
-    self.language = self.getLanguage(self.settings.language);
-
-    // 统计节假日
-    if (Array.isArray(self.language.holiday) && self.language.holiday.length) {
-      self.holiday = {};
-
-      for (var i = 0, l = self.language.holiday.length; i < l; i++) {
-        self.holiday[self.language.holiday[i].day] = self.language.holiday[i].name;
-      };
-
-    } else {
-      self.holiday = null;
-    };
-  };
-
-  // 创建面板
-  cxCalendar.buildPane = function() {
-    var self = this;
-    var yearOptions;
-    var yearValue = self.defDate.year;
-    var html;
-
-    self.dom.head.empty();
-    self.dom.main.empty();
-    self.dom.acts.empty();
-
-    // 基础样式
-    var _class = 'cxcalendar';
-
-    if (typeof self.settings.baseClass === 'string') {
-      _class += ' ' + self.settings.baseClass
-    };
-
-    self.dom.pane.attr('class', _class);
-
-    // 年份选择框
-    if (['month', 'date', 'datetime'].indexOf(self.settings.type) >= 0) {
-      html = '';
-
-      for (var i = self.minDate.year; i <= self.maxDate.year; i++) {
-        html += '<option value="' + i + '">' + i + '</option>';
-      };
-
-      self.dom.yearSelect.html(html).val(yearValue);
-
-    } else if (self.settings.type === 'year') {
-      var _start = Math.floor(self.minDate.year / 10) * 10;
-      var _end;
-
-      html = '';
-      for (var i = _start; i <= self.maxDate.year; i += self.settings.yearNum) {
-        if (i <= self.defDate.year) {
-          yearValue = i;
-        };
-
-        _end = i + self.settings.yearNum - 1;
-
-        html += '<option value="' + i + '">' + i + ' - ';
-
-        if (_end < self.maxDate.year) {
-          html += _end;
-        } else {
-          html += self.maxDate.year;
-        };
-
-        html += '</option>';
-      };
-
-      self.dom.yearSelect.html(html).val(yearValue);
-    };
-
-    if (['date', 'datetime'].indexOf(self.settings.type) >= 0) {
-      self.dom.head.append(self.dom.yearSelect).append('<em></em>').append(self.dom.monthSelect).append('<em></em>').append('<a class="prev" href="javascript://" rel="prev"></a><a class="next" href="javascript://" rel="next"></a>');
-      self.dom.dateSet.attr('class', 'days');
-      self.dom.main.append(self.dom.dateSet);
-      self.dom.acts.html('<a class="today" href="javascript://" rel="today"></a><a class="clear" href="javascript://" rel="clear"></a>');
-      self.dom.pane.prepend(self.dom.head).append(self.dom.acts);
-
-
-      if (self.settings.type === 'datetime') {
-        self.buildTimes();
-      };
-
-      self.rebulidMonthSelect();
-      self.dom.monthSelect.val(self.defDate.month);
-      self.gotoDate([self.defDate.year, self.defDate.month].join('-'));
-
-    } else if (self.settings.type === 'time') {
-      self.dom.head.remove();
-      self.dom.acts.remove();
+    if (cacheApi.settings.type === 'datetime') {
       self.buildTimes();
-
-    } else if (self.settings.type === 'month') {
-      self.dom.head.append(self.dom.yearSelect).append('<em></em>').append('<a class="prev" href="javascript://" rel="prev"></a><a class="next" href="javascript://" rel="next"></a>');
-      self.dom.dateSet.attr('class', 'months');
-      self.dom.main.append(self.dom.dateSet);
-      self.dom.acts.remove();
-      self.dom.pane.prepend(self.dom.head);
-
-      self.gotoDate(self.defDate.year);
-
-    } else if (self.settings.type === 'year') {
-      yearOptions = '';
-
-      self.dom.head.append(self.dom.yearSelect).append('<a class="prev" href="javascript://" rel="prev"></a><a class="next" href="javascript://" rel="next"></a>');
-      self.dom.dateSet.attr('class', 'years');
-      self.dom.main.append(self.dom.dateSet);
-      self.dom.acts.remove();
-      self.dom.pane.prepend(self.dom.head);
-      self.gotoDate(self.defDate.year);
-    };
-  };
-
-  // 重新构建月份选项
-  cxCalendar.rebulidMonthSelect = function() {
-    var self = this;
-    var year = parseInt(self.dom.yearSelect.val(), 10);
-    var month = parseInt(self.dom.monthSelect.val(), 10);
-    var start = 1;
-    var end = 12;
-    var value;
-    var html = '';
-
-    if (year === self.minDate.year && year === self.maxDate.year) {
-      start = self.minDate.month;
-      end = self.maxDate.month;
-    } else if (year === self.minDate.year) {
-      start = self.minDate.month;
-      end = 12;
-    } else if (year === self.maxDate.year) {
-      start = 1;
-      end = self.maxDate.month;
-    };
-
-    for (var i = start; i <= end; i++) {
-      if (month === i) {
-        value = month;
-      };
-
-      html += '<option value="' + i + '">' + self.language.monthList[i - 1] + '</option>';
-    };
-
-    self.dom.monthSelect.html(html);
-
-    if (value) {
-      self.dom.monthSelect.val(value);
-    };
-  };
-
-  // 构建日期列表
-  cxCalendar.buildDays = function(year, month) {
-    var self = this;
-
-    if (!self.isInteger(year) || !self.isInteger(month)) {return};
-
-    var theDate = new Date(year, month - 1, 1);
-    year = theDate.getFullYear();
-    month = theDate.getMonth() + 1;
-
-    if (year < self.minDate.year || (year === self.minDate.year && month < self.minDate.month)) {
-      year = self.minDate.year;
-      month = self.minDate.month;
-
-    } else if (year > self.maxDate.year || (year === self.maxDate.year && month > self.maxDate.month)) {
-      year = self.maxDate.year;
-      month = self.maxDate.month;
-    };
-
-    var jsMonth = month - 1;
-    var monthDays = self.getMonthDays(year);
-    var sameMonthDate = new Date(year, jsMonth, 1);
-    var nowDate = new Date();
-    var nowText = [nowDate.getFullYear(), nowDate.getMonth() + 1, nowDate.getDate()].join('-');
-
-    // 获取当月第一天
-    var monthFirstDay = sameMonthDate.getDay() - self.settings.wday;
-    if (monthFirstDay < 0) {
-      monthFirstDay += 7;
-    };
-
-    // 自适应或固定行数
-    var monthDayMax = self.settings.lockRow ? 42 : Math.ceil((monthDays[jsMonth] + monthFirstDay) / 7) * 7;
-
-    var todayDate;
-    var todayYear;
-    var todayMonth;
-    var todayNum;
-    var todayTime;
-    var todayText;
-    var todayName;
-    var classValue;
-    var html = '';
-
-    // 星期排序
-    for(var i = 0; i < 7; i++) {
-      html += '<li class="week'
-
-      // 高亮周末
-      if (i === self.settings.saturday) {
-        html += ' sat';
-      } else if(i === self.settings.sunday) {
-        html += ' sun';
-      };
-
-      html += '">' + self.language.weekList[(i + self.settings.wday) % 7] + '</li>';
-    };
-
-    for (var i = 0; i < monthDayMax; i++) {
-      classValue = [];
-      todayName = '';
-      todayYear = year;
-      todayMonth = month;
-      todayNum = i - monthFirstDay + 1;
-      
-      // 填充上月和下月的日期
-      if (todayNum <= 0) {
-        classValue.push('other');
-
-        if (todayMonth <= 1) {
-          todayYear--;
-          todayMonth = 12;
-          todayNum = monthDays[11] + todayNum;
-        } else {
-          todayMonth--;
-          todayNum = monthDays[jsMonth - 1] + todayNum;
-        };
-
-      } else if (todayNum > monthDays[jsMonth]) {
-        classValue.push('other');
-
-        if (todayMonth >= 12) {
-          todayYear++;
-          todayMonth = 1;
-          todayNum = todayNum - monthDays[0];
-        } else {
-          todayMonth++;
-          todayNum -= monthDays[jsMonth];
-        };
-      };
-
-      todayDate = new Date(todayYear, todayMonth - 1, todayNum);
-      todayTime = todayDate.getTime();
-      todayText = [todayYear, todayMonth, todayNum].join('-');
-
-      // 高亮选中日期、今天
-      if (todayText === self.cacheDate.txt) {
-        classValue.push('selected');
-      } else if (todayText === nowText) {
-        classValue.push('now');
-      };
-
-      // 高亮周末
-      if (i % 7 === self.settings.saturday) {
-        classValue.push('sat');
-      } else if (i % 7 === self.settings.sunday) {
-        classValue.push('sun');
-      };
-
-      // 超出范围的无效日期
-      if (todayTime < self.minDate.time || todayTime > self.maxDate.time) {
-        classValue.push('del');
-
-      // 不可选择的日期（星期）
-      } else if (Array.isArray(self.settings.disableWeek) && self.settings.disableWeek.length && self.settings.disableWeek.indexOf((i + self.settings.wday) % 7) >= 0) {
-        classValue.push('del');
-
-      // 不可选择的日期
-      } else if (Array.isArray(self.settings.disableDay) && self.settings.disableDay.length) {
-        if (self.settings.disableDay.indexOf(String(todayNum)) >= 0 || self.settings.disableDay.indexOf(todayMonth + '-' + todayNum) >= 0 || self.settings.disableDay.indexOf(todayYear + '-' + todayMonth + '-' + todayNum) >= 0) {
-          classValue.push('del');
-        };
-      };
-
-      // 判断是否有节假日
-      if (self.holiday) {
-        if (typeof self.holiday['M' + todayMonth + '-' + todayNum] === 'string') {
-          classValue.push('holiday');
-          todayName = self.holiday['M' + todayMonth + '-' + todayNum];
-        } else if (typeof self.holiday['D' + todayYear + '-' + todayMonth + '-' + todayNum] === 'string') {
-          classValue.push('holiday');
-          todayName = self.holiday['D' + todayYear + '-' + todayMonth + '-' + todayNum];
-        };
-      };
-
-
-      html += '<li';
-
-      if (classValue.length) {
-        html += ' class="' + classValue.join(' ') + '"';
-      };
-
-      if (classValue.indexOf('del') === -1) {
-        html += ' data-date="' + todayText + '"';
-      };
-
-      if (todayName.length) {
-        html += ' data-title="' + todayName + '"';
-      };
-
-      if (i % 7 === 0) {
-        html += ' data-week-num="' + self.getWeekNum(todayDate) + '"';
-      };
-
-      html += '>' + todayNum + '</li>';
-    };
-
-    self.dom.dateSet.html(html);
-    self.dom.yearSelect.val(year);
-    self.dom.monthSelect.val(month);
-  };
-
-  // 构建时间选择
-  cxCalendar.buildTimes = function() {
-    var self = this;
-    var hourOptions = '';
-    var mintOptions = '';
-    var secsOptions = '';
-    var hourValue;
-    var mintValue;
-    var secsValue;
-    var optionValue;
-
-    for (var i = 0; i < 24; i += self.settings.hourStep) {
-      if (i <= self.defDate.hour) {
-        hourValue = i;
-      };
-
-      optionValue = i < 10 ? '0' + String(i) : i;
-      hourOptions += '<option value="' + optionValue + '">' + optionValue + '</option>';
-    };
-
-    for (var i = 0; i < 60; i += self.settings.minuteStep) {
-      if (i <= self.defDate.mint) {
-        mintValue = i;
-      };
-
-      optionValue = i < 10 ? '0' + String(i) : i;
-      mintOptions += '<option value="' + optionValue + '">' + optionValue + '</option>';
-    };
-
-    for (var i = 0; i < 60; i += self.settings.secondStep) {
-      if (i <= self.defDate.secs) {
-        secsValue = i;
-      };
-
-      optionValue = i < 10 ? '0' + String(i) : i;
-      secsOptions += '<option value="' + optionValue + '">' + optionValue + '</option>';
-    };
-
-    hourValue = self.fillLeadZero(hourValue, 2);
-    mintValue = self.fillLeadZero(mintValue, 2);
-    secsValue = self.fillLeadZero(secsValue, 2);
-
-    self.dom.hourSelect.html(hourOptions).val(hourValue);
-    self.dom.mintSelect.html(mintOptions).val(mintValue);
-    self.dom.secsSelect.html(secsOptions).val(secsValue);
-
-    self.dom.main.append(self.dom.timeSet);
-  };
-
-  // 构建月份列表
-  cxCalendar.buildMonths = function(year) {
-    var self = this;
-    var start = 1;
-    var end = 12;
-    var classValue;
-    var todayText;
-    var html = '';
-
-    if (!self.isInteger(year)) {return};
-
-    var nowDate = new Date();
-    var nowText = [nowDate.getFullYear(), nowDate.getMonth() + 1].join('-');
-    var selectedText = [self.cacheDate.year, self.cacheDate.month].join('-');
-
-    for (var i = start; i <= end; i++) {
-      todayText = year + '-' + i;
-      classValue = [];
-
-      if (todayText === nowText) {
-        classValue.push('now');
-      };
-
-      if (todayText === selectedText) {
-        classValue.push('selected');
-      };
-
-      if ((year === self.minDate.year && i < self.minDate.month) || (year === self.maxDate.year && i > self.maxDate.month)) {
-        classValue.push('del');
-      };
-
-      html += '<li';
-
-      if (classValue.length) {
-        html += ' class="' + classValue.join(' ') + '"';
-      };
-
-      if (classValue.indexOf('del') === -1) {
-        html += ' data-date="' + todayText + '"';
-      };
-
-      html += '>' + self.language.monthList[i - 1] + '</li>';
-    };
-
-    self.dom.dateSet.html(html);
-  };
-
-  // 构建年份列表
-  cxCalendar.buildYears = function(year) {
-    var self = this;
-    var start = self.minDate.year;
-    var end;
-    var diff;
-    var classValue;
-    var html = '';
-
-    if (!self.isInteger(year)) {return};
-
-    var yearValue = parseInt(self.dom.yearSelect.val(), 10);
-    var nowDate = new Date();
-    var nowYear = nowDate.getFullYear();
-
-    if (year < self.minDate.year) {
-      start = self.minDate.year;
-    } else if (year > self.maxDate.year) {
-      start = self.maxDate.year;
-    };
-
-    start = Math.floor(start / 10) * 10;
-    diff = year - start;
-
-    if (diff >= self.settings.yearNum) {
-      start += Math.floor(diff / self.settings.yearNum) * self.settings.yearNum;
-    };
-
-    end = start + self.settings.yearNum - 1;
-
-    if (end > self.maxDate.year) {
-      end = self.maxDate.year;
-    };
-
-    if (yearValue !== start) {
-      self.dom.yearSelect.val(start);
-    };
-
-    for (var i = start; i <= end; i++) {
-      classValue = [];
-
-      if (i === nowYear) {
-        classValue.push('now');
-      };
-
-      if (i === self.cacheDate.year) {
-        classValue.push('selected');
-      };
-
-      if (i < self.minDate.year) {
-        classValue.push('del');
-      };
-
-      html += '<li';
-
-      if (classValue.length) {
-        html += ' class="' + classValue.join(' ') + '"';
-      };
-
-      if (classValue.indexOf('del') === -1) {
-        html += ' data-date="' + i + '"';
-      };
-
-      html += '>' + i + '</li>';
-    };
-
-    self.dom.dateSet.html(html);
-  };
-
-  // 向前翻页
-  cxCalendar.gotoPrev = function() {
-    var self = this;
-    var monthIndex;
-
-    switch (self.settings.type) {
-      case 'date':
-      case 'datetime':
-        monthIndex = self.dom.monthSelect[0].selectedIndex;
-
-        if (monthIndex > 0) {
-          self.dom.monthSelect[0].selectedIndex -= 1;
-          self.dom.monthSelect.trigger('change');
-
-        } else if (monthIndex === 0) {
-          if (self.dom.yearSelect[0].selectedIndex > 0) {
-            self.dom.yearSelect[0].selectedIndex -= 1;
-
-            self.rebulidMonthSelect();
-            self.dom.monthSelect[0].selectedIndex = self.dom.monthSelect[0].length - 1;
-            self.dom.monthSelect.trigger('change');
-          };
-        };
-        break;
-
-      case 'month':
-      case 'year':
-        if (self.dom.yearSelect[0].selectedIndex > 0) {
-          self.dom.yearSelect[0].selectedIndex -= 1;
-          self.dom.yearSelect.trigger('change');
-        };
-        break;
-    };
-  };
-
-  // 向后翻页
-  cxCalendar.gotoNext = function() {
-    var self = this;
-    var monthIndex;
-    var monthMax;
-
-    switch (self.settings.type) {
-      case 'date':
-      case 'datetime':
-        monthIndex = self.dom.monthSelect[0].selectedIndex;
-        monthMax = self.dom.monthSelect[0].length - 1;
-
-        if (monthIndex < monthMax) {
-          self.dom.monthSelect[0].selectedIndex += 1;
-          self.dom.monthSelect.trigger('change');
-
-        } else if (monthIndex === monthMax) {
-          if (self.dom.yearSelect[0].selectedIndex < self.dom.yearSelect[0].length - 1) {
-            self.dom.yearSelect[0].selectedIndex += 1;
-
-            self.rebulidMonthSelect();
-            self.dom.monthSelect[0].selectedIndex = 0;
-            self.dom.monthSelect.trigger('change');
-          };
-        };
-        break;
-
-      case 'month':
-      case 'year':
-        if (self.dom.yearSelect[0].selectedIndex < self.dom.yearSelect[0].length - 1) {
-          self.dom.yearSelect[0].selectedIndex += 1;
-          self.dom.yearSelect.trigger('change');
-        };
-        break;
-    };
-  };
-
-  // 跳转到日期
-  cxCalendar.gotoDate = function(value) {
-    var self = this;
-    var yearValue = parseInt(self.dom.yearSelect.val(), 10);
-    var monthValue = parseInt(self.dom.monthSelect.val(), 10);
-    var theDate;
-    var theYear;
-    var theMonth;
-
-    if (value === undefined) {
-      theYear = yearValue;
-      theMonth = monthValue;
+    }
+    self.rebuildMonthSelect();
+    self.gotoDate([cacheApi.defDate.year, cacheApi.defDate.month].join('-'));
+
+  } else if (cacheApi.settings.type === 'time') {
+    if (self.dom.panel.contains(self.dom.head)) {
+      self.dom.panel.removeChild(self.dom.head);
+    }
+    self.buildTimes();
+
+  } else if (cacheApi.settings.type === 'month') {
+    html += splitHtml;
+    html += '</section>';
+    html += fillHtml;
+    html += prevNextHtml;
+
+    self.dom.head.innerHTML = html;
+    self.dom.dateSet.className = 'months';
+
+    self.dom.main.insertAdjacentElement('beforeend', self.dom.dateSet);
+    self.dom.panel.insertAdjacentElement('afterbegin', self.dom.head);
+
+    self.gotoDate(cacheApi.defDate.year);
+
+  } else if (cacheApi.settings.type === 'year') {
+    html += '</section>';
+    html += fillHtml;
+    html += prevNextHtml;
+
+    self.dom.head.innerHTML = html;
+    self.dom.dateSet.className = 'years';
+
+    self.dom.main.insertAdjacentElement('beforeend', self.dom.dateSet);
+    self.dom.panel.insertAdjacentElement('afterbegin', self.dom.head);
+
+    self.gotoDate(cacheApi.defDate.year);
+  }
+  self.buildActs();
+};
+
+// 构建操作按钮
+theTool.buildActs = function() {
+  const self = this;
+  const list = [];
+
+  switch (cacheApi.settings.type) {
+    case 'date':
+    case 'month':
+    case 'year':
+      list.push('today', 'clear');
+      break;
+
+    case 'datetime':
+    case 'time':
+      list.push('today', 'clear', 'confirm');
+      break;
+
+    default:
+      list.push('clear');
+      break;
+  }
+  if (cacheApi.settings.mode === 'range') {
+    if (list.indexOf('today') >= 0) {
+      list.splice(list.indexOf('today'), 1);
+    }    if (list.indexOf('confirm') === -1) {
+      list.push('confirm');
+    }  }
+  let html = '';
+
+  for (let x of list) {
+    html += '<a class="' + x + '" href="javascript://" rel="' + x + '"></a>';
+  }
+  if (html.length) {
+    self.dom.acts.innerHTML = html;
+    self.dom.panel.insertAdjacentElement('beforeend', self.dom.acts);
+
+  } else if (self.dom.panel.contains(self.dom.acts)) {
+    self.dom.panel.removeChild(self.dom.acts);
+  }};
+
+// 重新构建月份选项
+theTool.rebuildMonthSelect = function() {
+  const self = this;
+  const values = {};
+  const selects = self.getSelects(['year', 'month'], values);
+  let start = 1;
+  let end = 12;
+
+  if (values.year === cacheApi.minDate.year && values.year === cacheApi.maxDate.year) {
+    start = cacheApi.minDate.month;
+    end = cacheApi.maxDate.month;
+  } else if (values.year === cacheApi.minDate.year) {
+    start = cacheApi.minDate.month;
+  } else if (values.year === cacheApi.maxDate.year) {
+    end = cacheApi.maxDate.month;
+  }
+  let html = '';
+
+  for (let i = start; i <= end; i++) {
+    html += '<option value="' + i + '"';
+
+    if (values.month === i) {
+      html += ' selected';
+    }
+    html += '>' + cacheApi.language.monthList[i - 1] + '</option>';
+  }
+  selects.month.innerHTML = html;
+};
+
+// 构建日期列表
+theTool.buildDays = function(year, month) {
+  const self = this;
+
+  if (!self.isInteger(year) || !self.isInteger(month)) {
+    return;
+  }
+  const theDate = new Date(year, month - 1, 1);
+  year = theDate.getFullYear();
+  month = theDate.getMonth() + 1;
+
+  if (year < cacheApi.minDate.year || (year === cacheApi.minDate.year && month < cacheApi.minDate.month)) {
+    year = cacheApi.minDate.year;
+    month = cacheApi.minDate.month;
+
+  // } else if (year > cacheApi.maxDate.year || (year === cacheApi.maxDate.year && month > cacheApi.maxDate.month)) {
+  //   year = cacheApi.maxDate.year;
+  //   month = cacheApi.maxDate.month;
+  }
+  const jsMonth = month - 1;
+  const monthDays = self.getMonthDays(year);
+  const sameMonthDate = new Date(year, jsMonth, 1);
+  const nowDate = new Date();
+  const nowText = [nowDate.getFullYear(), nowDate.getMonth() + 1, nowDate.getDate()].join('-');
+  const selectedText = self.formatDate('Y-n-j', self.cacheDate.time);
+
+  // 获取当月第一天
+  let monthFirstDay = sameMonthDate.getDay() - cacheApi.settings.weekStart;
+  if (monthFirstDay < 0) {
+    monthFirstDay += 7;
+  }
+  // 获取周末位置
+  const saturday = 6 - cacheApi.settings.weekStart;
+  const sunday = (7 - cacheApi.settings.weekStart) % 7;
+
+  // 自适应或固定行数
+  let monthDayMax = cacheApi.settings.lockRow ? 42 : Math.ceil((monthDays[jsMonth] + monthFirstDay) / 7) * 7;
+
+  // 日期范围值
+  const rangeValue = {};
+
+  if (typeof self.cacheDate.startTime === 'number') {
+    rangeValue.start = parseInt(self.formatDate('Ymd', self.cacheDate.startTime), 10);
+
+    if (typeof self.cacheDate.endTime === 'number') {
+      rangeValue.end = parseInt(self.formatDate('Ymd', self.cacheDate.endTime), 10);
     } else {
-      theDate = self.parseDate(value, true);
-      theYear = theDate.getFullYear();
-      theMonth = theDate.getMonth() + 1;
+      rangeValue.end = rangeValue.start;
+    }  }
+  let html = '<ul>';
 
-      if (theYear !== yearValue || theMonth !== monthValue) {
-        self.rebulidMonthSelect();
-        self.dom.monthSelect.val(theMonth);
-      };
-    };
+  // 星期排序
+  for(let i = 0; i < 7; i++) {
+    html += '<li class="week';
 
-    switch (self.settings.type) {
-      case 'date':
-      case 'datetime':
-        self.buildDays(theYear, theMonth);
-        break;
+    // 高亮周末
+    if (i === saturday) {
+      html += ' sat';
+    } else if(i === sunday) {
+      html += ' sun';
+    }
+    html += '">' + cacheApi.language.weekList[(i + cacheApi.settings.weekStart) % 7] + '</li>';
+  }
+  for (let i = 0; i < monthDayMax; i++) {
+    const classValue = [];
+    let todayYear = year;
+    let todayMonth = month;
+    let todayNum = i - monthFirstDay + 1;
+    
+    // 填充上月和下月的日期
+    if (todayNum <= 0) {
+      classValue.push('other');
 
-      case 'month':
-        self.buildMonths(theYear);
-        break;
+      if (todayMonth <= 1) {
+        todayYear--;
+        todayMonth = 12;
+        todayNum = monthDays[11] + todayNum;
+      } else {
+        todayMonth--;
+        todayNum = monthDays[jsMonth - 1] + todayNum;
+      }
+    } else if (todayNum > monthDays[jsMonth]) {
+      classValue.push('other');
 
-      case 'year':
-        self.buildYears(theYear);
-        break;
-    };
+      if (todayMonth >= 12) {
+        todayYear++;
+        todayMonth = 1;
+        todayNum = todayNum - monthDays[0];
+      } else {
+        todayMonth++;
+        todayNum -= monthDays[jsMonth];
+      }    }
+    const todayDate = new Date(todayYear, todayMonth - 1, todayNum);
+    const todayTime = todayDate.getTime();
+    const todayText = [todayYear, todayMonth, todayNum].join('-');
+    const todayInt = parseInt([todayYear, self.fillLeadZero(todayMonth, 2), self.fillLeadZero(todayNum, 2)].join(''), 10);
+    let todayName = '';
+
+    // 高亮已选择
+    if (cacheApi.settings.mode === 'range') {
+      if (todayInt === rangeValue.start || todayInt === rangeValue.end || (todayInt >= rangeValue.start && todayInt <= rangeValue.end)) {
+        classValue.push('selected');
+
+        if (todayInt === rangeValue.start) {
+          classValue.push('start');
+        }        if (todayInt === rangeValue.end) {
+          classValue.push('end');
+        }      }
+    } else if (todayText === selectedText) {
+      classValue.push('selected');
+    }
+    // 高亮今天
+    if (todayText === nowText) {
+      classValue.push('now');
+    }
+    // 高亮周末
+    if (i % 7 === saturday) {
+      classValue.push('sat');
+    } else if (i % 7 === sunday) {
+      classValue.push('sun');
+    }
+    // 超出范围的无效日期
+    if (todayTime < cacheApi.minDate.time || todayTime > cacheApi.maxDate.time) {
+      classValue.push('del');
+
+    // 不可选择的日期（星期）
+    } else if (Array.isArray(cacheApi.settings.disableWeek) && cacheApi.settings.disableWeek.length && cacheApi.settings.disableWeek.indexOf((i + cacheApi.settings.weekStart) % 7) >= 0) {
+      classValue.push('del');
+
+    // 不可选择的日期
+    } else if (Array.isArray(cacheApi.settings.disableDay) && cacheApi.settings.disableDay.length) {
+      if (cacheApi.settings.disableDay.indexOf(String(todayNum)) >= 0 || cacheApi.settings.disableDay.indexOf([todayMonth, todayNum].join('-')) >= 0 || cacheApi.settings.disableDay.indexOf([todayYear, todayMonth, todayNum].join('-')) >= 0) {
+        classValue.push('del');
+      }    }
+    // 判断是否有节假日
+    if (cacheApi.holiday) {
+      const keys = [
+        [todayYear, todayMonth, todayNum].join('-'),
+        [todayMonth, todayNum].join('-'),
+      ];
+
+      for (let x of keys) {
+        if (typeof cacheApi.holiday[x] === 'string') {
+          classValue.push('holiday');
+          todayName = cacheApi.holiday[x];
+          break;
+        }      }    }
+    html += '<li';
+
+    if (classValue.length) {
+      html += ' class="' + classValue.join(' ') + '"';
+    }
+    if (classValue.indexOf('del') === -1) {
+      html += ' data-date="' + todayText + '"';
+    }
+    if (todayName.length) {
+      html += ' data-title="' + todayName + '"';
+    }
+    if (i % 7 === 0) {
+      html += ' data-week-num="' + self.getWeekNum(todayDate) + '"';
+    }
+    html += '>' + todayNum + '</li>';
+  }
+  html += '</ul>';
+
+  return html;
+};
+
+// 构建时间选择
+theTool.buildTimes = function() {
+  const self = this;
+  const splitHtml = '<i></i>';
+  let html = '<section>';
+  let optionValue;
+
+  html += '<select name="hour" class="hour">';
+
+  for (let i = 0; i < 24; i += cacheApi.settings.hourStep) {
+    optionValue = self.fillLeadZero(i, 2);
+    html += '<option value="' + optionValue + '">' + optionValue + '</option>';
+  }
+  html += '</select>';
+  html += splitHtml;
+  html += '<select name="mint" class="mint">';
+
+  for (let i = 0; i < 60; i += cacheApi.settings.minuteStep) {
+    optionValue = self.fillLeadZero(i, 2);
+    html += '<option value="' + optionValue + '">' + optionValue + '</option>';
+  }
+  html += '</select>';
+  html += splitHtml;
+  html += '<select name="secs" class="secs">';
+
+  for (let i = 0; i < 60; i += cacheApi.settings.secondStep) {
+    optionValue = self.fillLeadZero(i, 2);
+    html += '<option value="' + optionValue + '">' + optionValue + '</option>';
+  }
+  html += '</select>';
+  html += '</section>';
+
+  if (cacheApi.settings.mode === 'range') {
+    html += html;
+  }
+  self.dom.timeSet.innerHTML = html;
+  self.dom.main.insertAdjacentElement('beforeend', self.dom.timeSet);
+
+  self.setTimesValues();
+};
+
+// 赋值时间选择
+theTool.setTimesValues = function() {
+  const self = this;
+  const values = [];
+
+  if (self.cacheDate.startTime && self.cacheDate.endTime) {
+    values.push(self.cacheDate.startTime, self.cacheDate.endTime);
+  } else if (self.cacheDate.startTime) {
+    values.push(self.cacheDate.startTime, self.cacheDate.startTime);
+  } else {
+    values.push(cacheApi.defDate.time, cacheApi.defDate.time);
+  }
+  const times = {
+    hour: [],
+    mint: [],
+    secs: [],
   };
 
-  // 获取当前选中日期
-  cxCalendar.getDate = function(style) {
-    var self = this;
-    var value = self.cacheInput.val();
+  for (let x of values) {
+    const d = new Date(x);
+    times.hour.push(self.fillLeadZero(d.getHours(), 2));
+    times.mint.push(self.fillLeadZero(d.getMinutes(), 2));
+    times.secs.push(self.fillLeadZero(d.getSeconds(), 2));
+  }
+  for (let x of self.dom.timeSet.querySelectorAll('select')) {
+    if (times[x.name] && times[x.name].length) {
+      x.value = times[x.name].shift();
+    }  }};
 
-    if (typeof style !== 'string' || !style.length) {
-      style = self.settings.format;
+// 构建月份列表
+theTool.buildMonths = function(year) {
+  const self = this;
+
+  if (!self.isInteger(year)) {
+    return;
+  }
+  const nowDate = new Date();
+  const nowText = [nowDate.getFullYear(), nowDate.getMonth() + 1].join('-');
+  const selectedText = self.formatDate('Y-n', self.cacheDate.time);
+
+  // 日期范围值
+  const rangeValue = {};
+
+  if (typeof self.cacheDate.startTime === 'number') {
+    rangeValue.start = parseInt(self.formatDate('Ym', self.cacheDate.startTime), 10);
+
+    if (typeof self.cacheDate.endTime === 'number') {
+      rangeValue.end = parseInt(self.formatDate('Ym', self.cacheDate.endTime), 10);
+    } else {
+      rangeValue.end = rangeValue.start;
+    }  }
+  let html = '<ul>';
+
+  for (let i = 1; i <= 12; i++) {
+    const classValue = [];
+    const todayText = year + '-' + i;
+    const todayInt = parseInt(year + self.fillLeadZero(i, 2), 10);
+
+    if (cacheApi.settings.mode === 'range') {
+      if (todayInt === rangeValue.start || todayInt === rangeValue.end || (todayInt >= rangeValue.start && todayInt <= rangeValue.end)) {
+        classValue.push('selected');
+
+        if (todayInt === rangeValue.start) {
+          classValue.push('start');
+        }        if (todayInt === rangeValue.end) {
+          classValue.push('end');
+        }      }
+    } else if (todayText === selectedText) {
+      classValue.push('selected');
+    }
+    if (todayText === nowText) {
+      classValue.push('now');
+    }
+    if (year < cacheApi.minDate.year || year > cacheApi.maxDate.year) {
+      classValue.push('del');
+    } else if ((year === cacheApi.minDate.year && i < cacheApi.minDate.month) || (year === cacheApi.maxDate.year && i > cacheApi.maxDate.month)) {
+      classValue.push('del');
+    }
+    html += '<li';
+
+    if (classValue.length) {
+      html += ' class="' + classValue.join(' ') + '"';
+    }
+    if (classValue.indexOf('del') === -1) {
+      html += ' data-date="' + todayText + '"';
+    }
+    html += '>' + cacheApi.language.monthList[i - 1] + '</li>';
+  }
+  html += '</ul>';
+
+  return html;
+};
+
+// 构建年份列表
+theTool.buildYears = function(year) {
+  const self = this;
+  let start = cacheApi.minDate.year;
+  let end;
+  let diff;
+
+  if (!self.isInteger(year)) {
+    return;
+  }
+  const nowDate = new Date();
+  const nowYear = nowDate.getFullYear();
+  const selectedText = parseInt(self.formatDate('Y', self.cacheDate.time), 10);
+
+  if (year < cacheApi.minDate.year) {
+    start = cacheApi.minDate.year;
+  }
+  start = Math.floor(start / 10) * 10;
+  diff = year - start;
+
+  if (diff >= cacheApi.settings.yearNum) {
+    start += Math.floor(diff / cacheApi.settings.yearNum) * cacheApi.settings.yearNum;
+  }
+  end = start + cacheApi.settings.yearNum - 1;
+
+  // if (end > cacheApi.maxDate.year) {
+  //   end = cacheApi.maxDate.year;
+  // };
+
+  // 日期范围值
+  const rangeValue = {};
+
+  if (typeof self.cacheDate.startTime === 'number') {
+    rangeValue.start = parseInt(self.formatDate('Y', self.cacheDate.startTime), 10);
+
+    if (typeof self.cacheDate.endTime === 'number') {
+      rangeValue.end = parseInt(self.formatDate('Y', self.cacheDate.endTime), 10);
+    } else {
+      rangeValue.start = rangeValue.end;
+    }  }
+  let html = '<ul>';
+
+  for (let i = start; i <= end; i++) {
+    const classValue = [];
+
+    if (cacheApi.settings.mode === 'range') {
+      if (i === rangeValue.start || i === rangeValue.end || (i >= rangeValue.start && i <= rangeValue.end)) {
+        classValue.push('selected');
+
+        if (i === rangeValue.start) {
+          classValue.push('start');
+        }        if (i === rangeValue.end) {
+          classValue.push('end');
+        }      }
+    } else if (i === selectedText) {
+      classValue.push('selected');
+    }
+    if (i === nowYear) {
+      classValue.push('now');
+    }
+    if (i < cacheApi.minDate.year || i > cacheApi.maxDate.year) {
+      classValue.push('del');
+    }
+    html += '<li';
+
+    if (classValue.length) {
+      html += ' class="' + classValue.join(' ') + '"';
+    }
+    if (classValue.indexOf('del') === -1) {
+      html += ' data-date="' + i + '"';
+    }
+    html += '>' + i + '</li>';
+  }
+  html += '</ul>';
+
+  return html;
+};
+
+// 跳转到日期
+theTool.gotoDate = function(value) {
+  const self = this;
+  const values = {};
+  const selects = self.getSelects(['year', 'month'], values);
+
+  if (value === undefined) {
+    value = values.year;
+
+    if (values.month) {
+      value += '-' + values.month;
+    }  }
+  const theDate = self.parseDate(value, true);
+  const theTime = theDate.getTime();
+
+  if (theTime < cacheApi.minDate.time) {
+    theDate.setTime(cacheApi.minDate.time);
+  } else if (theTime > cacheApi.maxDate.time) {
+    theDate.setTime(cacheApi.maxDate.time);
+  }
+  let theYear = theDate.getFullYear();
+  let theMonth = theDate.getMonth() + 1;
+
+  if (cacheApi.settings.type === 'year') {
+    let startYear = theYear;
+
+    for (let x of selects.year.options) {
+      let val = parseInt(x.value, 10);
+
+      if (val <= theYear) {
+        startYear = val;
+      } else {
+        break;
+      }    }
+    theYear = startYear;
+
+    if (startYear !== values.year) {
+      selects.year.value = startYear;
+    }
+  } else if (theYear !== values.year) {
+    selects.year.value = theYear;
+  }
+  if (selects.month) {
+    if (theYear !== values.year || theMonth !== values.month) {
+      self.rebuildMonthSelect();
+      selects.month.value = theMonth;
+    }  }
+  let html = '';
+  let fillHtml = '';
+
+  switch (cacheApi.settings.type) {
+    case 'date':
+    case 'datetime':
+      html = self.buildDays(theYear, theMonth);
+
+      if (cacheApi.settings.mode === 'range') {
+        fillHtml = '<span class="year">';
+        fillHtml += theMonth >= 12 ? (theYear + 1) : theYear;
+        fillHtml += '</span><em></em><span class="month">';
+        fillHtml += theMonth >= 12 ? '1' : (theMonth + 1);
+        fillHtml += '</span><em></em>';
+
+        html += self.buildDays(theYear, theMonth + 1);
+      }      break;
+
+    case 'month':
+      html = self.buildMonths(theYear);
+
+      if (cacheApi.settings.mode === 'range') {
+        fillHtml = '<span class="year">' + (theYear + 1) + '</span><em></em>';
+        html += self.buildMonths(theYear + 1);
+      }      break;
+
+    case 'year':
+      html = self.buildYears(theYear);
+
+      if (cacheApi.settings.mode === 'range') {
+        fillHtml = '<span class="year">' + (theYear + cacheApi.settings.yearNum) + ' - ' + (theYear + cacheApi.settings.yearNum * 2 - 1) + '</span>';
+        html += self.buildYears(theYear + cacheApi.settings.yearNum);
+      }      break;
+  }
+  self.dom.dateSet.innerHTML = html;
+
+  if (cacheApi.settings.mode === 'range') {
+    let el = self.dom.head.querySelectorAll('section');
+
+    if (el.length > 1) {
+      el[1].innerHTML = fillHtml;
+    }  }};
+
+// 向前翻页
+theTool.gotoPrev = function() {
+  const self = this;
+  const selects = self.getSelects(['year', 'month']);
+
+  switch (cacheApi.settings.type) {
+    case 'date':
+    case 'datetime':
+      const monthIndex = selects.month.selectedIndex;
+
+      if (monthIndex > 0) {
+        selects.month.selectedIndex -= 1;
+        self.gotoDate();
+
+      } else if (monthIndex === 0) {
+        if (selects.year.selectedIndex > 0) {
+          selects.year.selectedIndex -= 1;
+
+          self.rebuildMonthSelect();
+          selects.month.selectedIndex = selects.month.length - 1;
+          self.gotoDate();
+        }      }      break;
+
+    case 'month':
+    case 'year':
+      if (selects.year.selectedIndex > 0) {
+        selects.year.selectedIndex -= 1;
+        self.gotoDate();
+      }      break;
+  }};
+
+// 向后翻页
+theTool.gotoNext = function() {
+  const self = this;
+  const selects = self.getSelects(['year', 'month']);
+
+  switch (cacheApi.settings.type) {
+    case 'date':
+    case 'datetime':
+      const monthIndex = selects.month.selectedIndex;
+      const monthMax = selects.month.length - 1;
+
+      if (monthIndex < monthMax) {
+        selects.month.selectedIndex += 1;
+        self.gotoDate();
+
+      } else if (monthIndex === monthMax) {
+        if (selects.year.selectedIndex < selects.year.length - 1) {
+          selects.year.selectedIndex += 1;
+
+          self.rebuildMonthSelect();
+          selects.month.selectedIndex = 0;
+          self.gotoDate();
+        }      }      break;
+
+    case 'month':
+    case 'year':
+      if (selects.year.selectedIndex < selects.year.length - 1) {
+        selects.year.selectedIndex += 1;
+        self.gotoDate();
+      }      break;
+  }};
+
+// 显示面板
+theTool.showPanel = function() {
+  const self = this;
+
+  if (self.delayHide) {
+    clearTimeout(self.delayHide);
+  }
+  const pos = cacheApi.settings.position;
+
+  const winWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  const winHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+
+  const elRect = cacheApi.input.getBoundingClientRect();
+  const elWidth = elRect.width;
+  const elHeight = elRect.height;
+  const elClientTop = elRect.top;
+  const elClientLeft = elRect.left;
+  const elTop = elClientTop + window.pageYOffset - document.documentElement.clientTop;
+  const elLeft = elClientLeft + window.pageXOffset - document.documentElement.clientLeft;
+
+  const panelRect = self.dom.panel.getBoundingClientRect();
+  const panelWidth = panelRect.width;
+  const panelHeight = panelRect.height;
+  let panelTop = ((elClientTop + elHeight + panelHeight) > winHeight) ? elTop - panelHeight : elTop + elHeight;
+  let panelLeft = ((elClientLeft + panelWidth) > winWidth) ? elLeft - panelWidth + elWidth : elLeft;
+
+  if (typeof pos === 'string' && pos.length) {
+    switch(pos) {
+      case 'fixed':
+        panelTop = null;
+        panelLeft = null;
+        break;
+
+      case 'top':
+        panelTop = elTop - panelHeight;
+        break;
+
+      case 'bottom':
+        panelTop = elTop + elHeight;
+        break;
+
+      case 'left':
+      case 'right':
+        panelTop = ((elClientTop + elHeight + panelHeight) > winHeight) ? elTop + elHeight - panelHeight : elTop;
+        panelLeft = (pos === 'left') ? elLeft - panelWidth : elLeft + elWidth;
+        break;
+    }  }
+  if (typeof panelTop === 'number' && typeof panelLeft === 'number') {
+    self.dom.panel.style.top = panelTop + 'px';
+    self.dom.panel.style.left = panelLeft + 'px';
+  }
+  self.dom.panel.classList.add('show');
+};
+
+// 隐藏面板
+theTool.hidePanel = function() {
+  const self = this;
+  self.dom.panel.classList.remove('show');
+
+  self.delayHide = setTimeout(() => {
+    self.dom.panel.removeAttribute('style');
+  }, 300);
+};
+
+// 确认选择日期范围
+theTool.confirmRange = function() {
+  const self = this;
+  let values = [];
+
+  if (self.cacheDate.startTime && self.cacheDate.endTime) {
+    values.push(self.cacheDate.startTime, self.cacheDate.endTime);
+  } else if (self.cacheDate.startTime) {
+    values.push(self.cacheDate.startTime, self.cacheDate.startTime);
+  } else {
+    values.push(cacheApi.defDate.time, cacheApi.defDate.time);
+  }
+  if (['datetime', 'time'].indexOf(cacheApi.settings.type) >= 0) {
+    const times = {
+      hour: [],
+      mint: [],
+      secs: [],
     };
 
-    value = self.formatDate(style, value);
+    for (let x of self.dom.timeSet.querySelectorAll('select')) {
+      if (times[x.name]) {
+        times[x.name].push(x.value);
+      }    }
+    // 日期对比时间顺序
+    if (cacheApi.settings.type === 'datetime') {
+      const diffTime = [];
 
-    return value;
+      for (let i = 0, l = values.length; i < l; i++) {
+        diffTime.push(parseInt([1, times.hour[i], times.mint[i], times.secs[i]].join(''), 10));
+      }
+      if (diffTime[0] > diffTime[1]) {
+        for (let x in times) {
+          if (times[x].length > 1) {
+            times[x][1] = times[x][0];
+          }        }      }    }
+    values = values.map((item, index) => {
+      const d = new Date(item);
+      d.setHours(times.hour[index], times.mint[index], times.secs[index], 0);
+      return d.getTime();
+    });
+  }
+  values = values.join(cacheApi.settings.rangeSymbol);
+  cacheApi.setDate(values);
+};
+
+// 确认选择
+theTool.confirmTime = function() {
+  const self = this;
+  const theDate = new Date();
+  let theTime = cacheApi.defDate.time;
+
+  if (cacheApi.settings.type === 'datetime' && typeof self.cacheDate.time === 'number') {
+    theTime = self.cacheDate.time;
+  }
+  theDate.setTime(theTime);
+
+  // 时分秒
+  const times = Array(4).fill(0);
+  const map = {
+    hour: 0,
+    mint: 1,
+    secs: 2,
   };
 
-  // 设置日期
-  cxCalendar.setDate = function(value) {
-    var self = this;
-    var theDate = self.parseDate(value);
+  for (let x of self.dom.timeSet.querySelectorAll('select')) {
+    if (x.name in map) {
+      times[map[x.name]] = parseInt(x.value);
+    }  }
+  theDate.setHours(...times);
 
-    if (!self.isDateObject(theDate)) {return};
+  cacheApi.setDate(theDate.getTime());
+};
 
-    var theYear = theDate.getFullYear();
-    var theMonth = theDate.getMonth() + 1;
-    var theDay = theDate.getDate();
-    var theTime = theDate.getTime();
+// 解除绑定
+theTool.detach = function(el) {
+  const self = this;
+
+  if (!self.isElement(el)) {
+    return;
+  }
+  const alias = 'id_' + el.dataset.cxCalendarId;
+  delete el.dataset.cxCalendarId;
+
+  if (typeof self.bindFuns[alias] === 'function') {
+    el.removeEventListener('click', self.bindFuns[alias]);
+    delete self.bindFuns[alias];
+  }};
+
+document.addEventListener('DOMContentLoaded', () => {
+  theTool.init();
+});
+
+// 缓存项
+let cacheApi;
+
+
+// 选择器实例
+const picker = function() {
+  const self = this;
+  let options = {};
+  let isAttach = false;
+
+  // 分配参数
+  for (let x of arguments) {
+    if (theTool.isElement(x)) {
+      self.input = x;
+    } else if (theTool.isObject(x)) {
+      options = x;
+    } else if (typeof x === 'boolean') {
+      isAttach = x;
+    }  }
+  if (!self.input || !self.input.nodeName || self.input.nodeName.toLowerCase() !== 'input') {
+    console.warn('[cxCalendar] Not input element.');
+    return;
+  }
+  const maps = {
+    baseClass: 'baseClass',
+    disableWeek: 'disableWeek',
+    disableDay: 'disableDay',
+    endDate: 'endDate',
+    format: 'format',
+    hourStep: 'hourStep',
+    language: 'language',
+    lockRow: 'lockRow',
+    minuteStep: 'minuteStep',
+    position: 'position',
+    mode: 'mode',
+    rangeSymbol: 'rangeSymbol',
+    secondStep: 'secondStep',
+    startDate: 'startDate',
+    type: 'type',
+    weekStart: 'weekStart',
+    yearNum: 'yearNum',
+  };
+
+  // 合并输入框参数
+  const inputSettings = {};
+
+  for (let x in maps) {
+    if (typeof self.input.dataset[maps[x]] === 'string' && self.input.dataset[maps[x]].length) {
+      if (x === 'lockRow') {
+        inputSettings[x] = Boolean(parseInt(self.input.dataset[maps[x]], 10));
+
+      } else if (['disableWeek', 'disableDay'].indexOf(x) >= 0) {
+        inputSettings[x] = self.input.dataset[maps[x]].split(',');
+
+      } else {
+        inputSettings[x] = self.input.dataset[maps[x]];
+      }    }  }
+  if (Array.isArray(inputSettings.disableWeek)) {
+    inputSettings.disableWeek.forEach((val) => {
+    });
+  }
+  self.settings = theTool.extend({}, cxCalendar.defaults, options, inputSettings);
+  self.setOptions();
+
+  let alias = 'id_' + self.input.dataset.cxCalendarId;
+
+  if (typeof theTool.bindFuns[alias] === 'function') {
+    self.detach(self.input);
+  }
+  self.eventChange = new CustomEvent('change', {
+    bubbles: true
+  });
+
+  if (isAttach) {
+    self.input.dataset.cxCalendarId = theTool.cxId;
+    alias = 'id_' + theTool.cxId;
+    theTool.cxId++;
+    theTool.bindFuns[alias] = self.show.bind(self);
+
+    self.input.addEventListener('click', theTool.bindFuns[alias]);
+
+  } else {
+    self.show();
+  }};
+
+picker.prototype.setOptions = function(options) {
+  const self = this;
+  let maxDate;
+  let minDate;
+  let defDate;
+
+  if (theTool.isObject(options)) {
+    theTool.extend(self.settings, options);
+  }
+  // 结束日期（默认为当前日期）
+  if (theTool.reg.isYear.test(self.settings.endDate)) {
+    maxDate = new Date(self.settings.endDate, 11, 31);
+  } else {
+    maxDate = theTool.parseDate(self.settings.endDate, true);
+  }
+  maxDate.setHours(23, 59, 59);
+
+  self.maxDate = {
+    year: maxDate.getFullYear(),
+    month: maxDate.getMonth() + 1,
+    day: maxDate.getDate(),
+    time: maxDate.getTime()
+  };
+
+  // 起始日期（默认为当前日期的前一年）
+  if (theTool.reg.isYear.test(self.settings.startDate)) {
+    minDate = new Date(self.settings.startDate, 0, 1);
+  } else {
+    minDate = theTool.parseDate(self.settings.startDate);
+  }
+  if (!theTool.isDate(minDate)) {
+    minDate = new Date();
+    minDate.setFullYear(minDate.getFullYear() - 1);
+  }
+  // 若超过结束日期，则设为结束日期的前一年
+  if (minDate.getTime() > self.maxDate.time) {
+    minDate = new Date(self.maxDate.year - 1, self.maxDate.month - 1, self.maxDate.day);
+  }
+  minDate.setHours(0, 0, 0, 0);
+
+  self.minDate = {
+    year: minDate.getFullYear(),
+    month: minDate.getMonth() + 1,
+    day: minDate.getDate(),
+    time: minDate.getTime()
+  };
+
+  const rangeValue = {};
+
+  // 默认日期
+  if (self.settings.mode === 'range') {
+    const dateSp = String(self.settings.date).split(self.settings.rangeSymbol);
+
+    if (dateSp.length === 2) {
+      defDate = theTool.parseDate(dateSp[0], true);
+
+      const rangeEndDate = theTool.parseDate(dateSp[1], true);
+      rangeValue.start = defDate.getTime();
+      rangeValue.end = rangeEndDate.getTime();
+    }  }
+  if (!defDate) {
+    defDate = theTool.parseDate(self.settings.date, true);
+  }
+  if (defDate.getTime() < self.minDate.time) {
+    defDate = theTool.parseDate(self.minDate.time, true);
+  } else if (defDate.getTime() > self.maxDate.time) {
+    defDate = theTool.parseDate(self.maxDate.time, true);
+  }
+  self.defDate = {
+    year: defDate.getFullYear(),
+    month: defDate.getMonth() + 1,
+    day: defDate.getDate(),
+    hour: defDate.getHours(),
+    mint: defDate.getMinutes(),
+    secs: defDate.getSeconds(),
+    time: defDate.getTime(),
+    start: rangeValue.start,
+    end: rangeValue.end,
+  };
+
+  // 星期的起始位置
+  self.settings.weekStart %= 7;
+
+  // 语言配置
+  self.language = theTool.getLanguage(self.settings.language);
+
+  // 统计节假日
+  if (Array.isArray(self.language.holiday) && self.language.holiday.length) {
+    self.holiday = {};
+
+    for (let x of self.language.holiday) {
+      self.holiday[x.day] = x.name;
+    }
+  } else {
+    self.holiday = null;
+  }};
+
+picker.prototype.show = function() {
+  const self = this;
+
+  if (self.input.value || !self.settings.date) {
+    self.settings.date = self.input.value;
+  }  self.setOptions();
+
+  cacheApi = self;
+
+  theTool.buildPanel();
+  theTool.showPanel();
+};
+
+picker.prototype.hide = function() {
+  theTool.hidePanel();
+};
+
+picker.prototype.getDate = function(style) {
+  const self = this;
+  const value = self.input.value;
+  const dateList = [];
+
+  if (typeof style !== 'string' || !style.length) {
+    style = self.settings.format;
+  }
+  if (self.settings.mode === 'range') {
+    const dateSp = String(value).split(self.settings.rangeSymbol);
+
+    if (dateSp.length === 2) {
+      dateList.push(...dateSp);
+    }
+  } else {
+    dateList.push(value);
+  }
+  let newValue = [];
+
+  for (let x of dateList) {
+    const theDate = theTool.parseDate(x);
+
+    if (!theTool.isDate(theDate)) {
+      newValue = [];
+      break;
+    }
+    newValue.push(theTool.formatDate(style, theDate.getTime()));
+  }
+  newValue = self.settings.mode === 'range' ? newValue.join(self.settings.rangeSymbol) : newValue.join('');
+
+  return newValue;
+};
+
+picker.prototype.setDate = function(value) {
+  const self = this;
+  const oldValue = self.input.value;
+  const dateList = [];
+
+  if (self.settings.mode === 'range') {
+    const dateSp = String(value).split(self.settings.rangeSymbol);
+
+    if (dateSp.length === 2) {
+      dateList.push(...dateSp);
+    }
+  } else {
+    dateList.push(value);
+  }
+  let newValue = [];
+
+  for (let x of dateList) {
+    const theDate = theTool.parseDate(x);
+
+    if (!theTool.isDate(theDate)) {
+      newValue = [];
+      break;
+    }
+    let theTime = theDate.getTime();
 
     if (theTime < self.minDate.time) {
       theTime = self.minDate.time;
     } else if (theTime > self.maxDate.time) {
       theTime = self.maxDate.time;
-    };
-
-    // if (self.settings.type === 'year' && (theYear < self.minDate.year || theYear > self.maxDate.year)) {
-    //   return;
-    // } else if (self.settings.type === 'month' && ((theYear === self.minDate.year && theMonth < self.minDate.month) || (theYear === self.maxDate.year && theMonth > self.maxDate.month))) {
-    //   return;
-
-    // } else if ((self.settings.type === 'date' || self.settings.type === 'datetime') && (theTime < self.minDate.time || theTime > self.maxDate.time)) {
-    //   return;
-    // };
-
-    var theValue = self.formatDate(self.settings.format, theTime);
-
-    self.cacheInput.val(theValue).trigger('change');
-  };
-  
-  // 清除日期
-  cxCalendar.clearDate = function() {
-    var self = this;
-    self.cacheInput.val('');
-  };
-
-  // 隐藏日期选择器
-  cxCalendar.showPane = function() {
-    var self = this;
-    var pos = self.settings.position;
-
-    var winWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-    var winHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-
-    var paneWidth = self.dom.pane.width();
-    var paneHeight = self.dom.pane.height();
-
-    var elRect = self.cacheInput[0].getBoundingClientRect();
-    var clientTop = elRect.top;
-    var clientLeft = elRect.left;
-    var elWidth = elRect.width;
-    var elHeight = elRect.height;
-
-    var elTop = clientTop + window.pageYOffset - document.documentElement.clientTop;
-    var elLeft = clientLeft + window.pageXOffset - document.documentElement.clientLeft;
-
-    var paneTop = ((clientTop + elHeight + paneHeight) > winHeight) ? elTop - paneHeight : elTop + elHeight;
-    var paneLeft = ((clientLeft + paneWidth) > winWidth) ? elLeft - paneWidth + elWidth : elLeft;
-
-    if (typeof pos === 'string' && pos.length) {
-      switch(pos) {
-        case 'fixed':
-          paneTop = null;
-          paneLeft = null;
-          break
-
-        case 'top':
-          paneTop = elTop - paneHeight;
-          break
-
-        case 'bottom':
-          paneTop = elTop + elHeight;
-          break
-
-        case 'left':
-        case 'right':
-          paneTop = ((clientTop + elHeight + paneHeight) > winHeight) ? elTop + elHeight - paneHeight : elTop;
-          paneLeft = (pos === 'left') ? elLeft - paneWidth : elLeft + elWidth;
-          break
-
-        // not default
-      };
-    };
-
-    if (typeof paneTop === 'number' && typeof paneLeft === 'number') {
-      self.dom.pane.css({
-        'top': paneTop,
-        'left': paneLeft
-      });
-    };
-
-    self.dom.pane.addClass('show');
-    self.dom.blockBg.addClass('show');
-  };
-
-  // 隐藏日期选择器
-  cxCalendar.hidePane = function() {
-    var self = this;
-    self.dom.pane.removeClass('show');
-    self.dom.blockBg.removeClass('show');
-
-    self.delayHide = setTimeout(function() {
-      self.dom.pane.removeAttr('style');
-    }, 300);
-  };
-
-  cxCalendar.show = function(el, settings) {
-    var self = this;
-
-    if (self.delayHide) {
-      clearTimeout(self.delayHide);
-    };
-
-    if (!self.isPlainObject(settings)) {
-      settings = {};
-    };
-
-    self.cacheDate = {};
-    self.cacheInput = el;
-
-    var _value = self.cacheInput.val();
-
-    // 默认日期
-    if (_value && _value.length) {
-      var theDate = self.parseDate(_value);
-
-      if (self.isDateObject(theDate)) {
-        settings.date = _value;
-
-        self.cacheDate = {
-          year: theDate.getFullYear(),
-          month: theDate.getMonth() + 1,
-          day: theDate.getDate(),
-        };
-        self.cacheDate.txt = [self.cacheDate.year, self.cacheDate.month, self.cacheDate.day].join('-');
-      };
-    };
-
-    self.setOptions(settings);
-    self.buildPane();
-    self.showPane();
-  };
-
-  $.cxCalendar = function() {
-    var self = this;
-    var input;
-    var settings;
-    var callback;
-    var isAttach = false;
-
-    // 分配参数
-    for (var i = 0, l = arguments.length; i < l; i++) {
-      if (cxCalendar.isJquery(arguments[i]) || cxCalendar.isZepto(arguments[i])) {
-        input = arguments[i];
-      } else if (cxCalendar.isElement(arguments[i])) {
-        input = $(arguments[i]);
-      } else if (typeof arguments[i] === 'function') {
-        callback = arguments[i];
-      } else if (typeof arguments[i] === 'object') {
-        settings = arguments[i];
-      } else if (typeof arguments[i] === 'boolean') {
-        isAttach = arguments[i];
-      };
-    };
-
-    if (!input.length) {return};
-
-    // 合并输入框参数
-    var inputSettings = {
-      startDate: input.data('startDate'),
-      endDate: input.data('endDate'),
-      type: input.data('type'),
-      format: input.data('format'),
-      wday: input.data('wday'),
-      yearNum: input.data('yearNum'),
-      hourStep: input.data('hourStep'),
-      minuteStep: input.data('minuteStep'),
-      secondStep: input.data('secondStep'),
-      disableWeek: input.data('disableWeek'),
-      disableDay: input.data('disableDay'),
-      position: input.data('position'),
-      baseClass: input.data('baseClass'),
-      language: input.data('language'),
-    };
-
-    if (parseInt(input.data('lockRow'), 10) === 1) {
-      inputSettings.lockRow = true;
-    };
-
-    // 不可选择的日期
-    if (typeof inputSettings.disableWeek === 'string' && inputSettings.disableWeek.length && /^[\d\,]+$/.test(inputSettings.disableWeek)) {
-      inputSettings.disableWeek = inputSettings.disableWeek.split(',');
-
-      for (var i = 0, l = inputSettings.disableWeek.length; i < l; i++) {
-        inputSettings.disableWeek[i] = parseInt(inputSettings.disableWeek[i], 10);
-      };
-    } else {
-      inputSettings.disableWeek = undefined;
-    };
-
-    if (typeof inputSettings.disableDay === 'string' && inputSettings.disableDay.length && /^[\d\-\,]+$/.test(inputSettings.disableDay)) {
-      inputSettings.disableDay = inputSettings.disableDay.split(',');
-    } else {
-      inputSettings.disableDay = undefined;
-    };
-
-    for (var x in inputSettings) {
-      if (inputSettings[x] === undefined) {
-        delete inputSettings[x];
-      };
-    };
-
-    settings = $.extend({}, $.cxCalendar.defaults, settings, inputSettings);
-
-    if (isAttach) {
-      input.on('focus', function() {
-        cxCalendar.show(input, settings);
-      });
-    } else {
-      cxCalendar.show(input, settings);
-    };
-
-    if (typeof callback === 'function') {
-      var api = function(input, settings){
-        return {
-          setOptions: function(opts) {
-            settings = $.extend(settings, opts);
-          },
-          show: function() {
-            cxCalendar.show(input, settings);
-          },
-          hide: function() {
-            cxCalendar.hidePane();
-          },
-          getDate: function(style) {
-            cxCalendar.cacheInput = input;
-            return cxCalendar.getDate(style);
-          },
-          setDate: function(value) {
-            cxCalendar.cacheInput = input;
-            cxCalendar.setOptions(settings);
-            cxCalendar.setDate(value);
-          },
-          clearDate: function() {
-            cxCalendar.cacheInput = input;
-            cxCalendar.clearDate();
-          }
-        };
-      };
-
-      callback(api(input, settings));
-    };
-
-    return this;
-  };
-
-  // 默认值
-  $.cxCalendar.defaults = {
-    startDate: undefined,   // 开始日期
-    endDate: undefined,     // 结束日期
-    date: undefined,        // 默认日期
-    type: 'date',           // 日期类型
-    format: 'Y-m-d',        // 日期值格式
-    wday: 0,                // 星期开始于周几
-    lockRow: false,         // 固定日期的行数
-    yearNum: 20,            // 年份每页条数
-    hourStep: 1,            // 小时间隔
-    minuteStep: 1,          // 分钟间隔
-    secondStep: 1,          // 秒间隔
-    disableWeek: [],        // 不可选择的日期（星期值）
-    disableDay: [],         // 不可选择的日期
-    position: undefined,    // 面板位置
-    baseClass: undefined,   // 基础样式
-    language: undefined     // 语言配置
-  };
-
-  // 默认语言配置
-  $.cxCalendar.languages = {
-    'default': {
-      monthList: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
-      weekList: ['日', '一', '二', '三', '四', '五', '六'],
-      holiday: []
     }
-  };
+    newValue.push(theTool.formatDate(self.settings.format, theTime));
+  }
+  newValue = self.settings.mode === 'range' ? newValue.join(self.settings.rangeSymbol) : newValue.join('');
 
-  $.fn.cxCalendar = function(settings, callback) {
-    this.each(function(i) {
-      $.cxCalendar(this, settings, callback, true);
-    });
-    return this;
-  };
+  if (oldValue !== newValue) {
+    self.input.value = newValue;
+    self.input.dispatchEvent(self.eventChange);
+  }};
 
-  cxCalendar.init();
+picker.prototype.clearDate = function() {
+  const self = this;
+  const oldValue = self.input.value;
+
+  if (oldValue && oldValue.length) {
+    self.input.value = '';
+    self.input.dispatchEvent(self.eventChange);
+  }};
+
+
+const cxCalendar = function(el, options, isAttach) {
+  const result = new picker(...arguments);
+
+  if (isAttach) {
+    return result;
+  }};
+
+cxCalendar.attach = function(el, options) {
+  return this(el, options, true);
+};
+
+cxCalendar.detach = function(el) {
+  theTool.detach(el);
+};
+
+// 默认值
+cxCalendar.defaults = {
+  startDate: undefined,   // 开始日期
+  endDate: undefined,     // 结束日期
+  date: undefined,        // 默认日期
+  type: 'date',           // 日期类型
+  format: 'Y-m-d',        // 日期值格式
+  weekStart: 0,           // 星期开始于周几
+  lockRow: false,         // 固定日期的行数
+  yearNum: 20,            // 年份每页条数
+  hourStep: 1,            // 小时间隔
+  minuteStep: 1,          // 分钟间隔
+  secondStep: 1,          // 秒间隔
+  disableWeek: [],        // 不可选择的日期（星期值）
+  disableDay: [],         // 不可选择的日期
+  mode: 'single',         // 选择模式
+  rangeSymbol: ' - ',     // 日期范围拼接符号
+  position: undefined,    // 面板位置
+  baseClass: undefined,   // 基础样式
+  language: undefined     // 语言配置
+};
+
+// 默认语言配置
+cxCalendar.languages = {
+  'default': {
+    monthList: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+    weekList: ['日', '一', '二', '三', '四', '五', '六'],
+    holiday: []
+  }
+};
+
+return cxCalendar;
+
 }));
