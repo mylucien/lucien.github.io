@@ -266,7 +266,7 @@
         <div class="form-item">
             <div class="form-label">来访时间</div>
             <!--<input type="datetime-local" class="form-input" placeholder="请选择时间" />-->
-            <input id="my_datetime" class="form-input"  type="text" readonly data-type="datetime" data-format="Y-m-d H:i" placeholder="请选择来访时间" />
+            <input id="my_datetime" class="form-input"  type="text" readonly placeholder="请选择来访时间" />
         </div>
         
         <button id="submitBtn" class="submit-btn">提交信息</button>
@@ -314,8 +314,13 @@
     </div>
     <script src="./js/cxcalendar.js"></script>
     <script>
-        // 方式一：绑定到输入框
-        $("#my_datetime").cxCalendar();
+        // 选择日期和时间
+        cxCalendar.attach(document.getElementById('my_datetime'), {
+        type: 'datetime',
+        format: 'Y-m-d H:i',
+        baseClass: 'not_secs',
+        endDate: '2035',
+        });
     </script>
     <script>
         $(document).ready(function() {
