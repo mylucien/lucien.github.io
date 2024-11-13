@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>中国电信数据中心访客预约</title>
     <link rel="stylesheet" href="./css/cxcalendar.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -217,6 +217,25 @@
             text-align: right;
             text-align-last: right;  /* 针对 Chrome */
             direction: rtl;  /* 针对 iOS */
+            appearance: none;              /* 去掉默认样式 */
+            -webkit-appearance: none;      /* Safari 和 Chrome */
+            -moz-appearance: none;         /* Firefox */
+        }
+        /* 使用更具体的选择器来提高优先级 */
+        .form-item select.form-input {
+            color: #999 !important;  /* 使用 !important 确保优先级 */
+        }
+        /* 当选择了其他选项时的颜色 */
+        .form-item select.form-input:valid {
+            color: black !important;
+        }
+        /* 设置选项的颜色 */
+        .form-item select.form-input option:not([disabled]) {
+            color: black;
+        }
+
+        select option[disabled] {
+            color: #999;
         }
     </style>
 </head>
@@ -258,8 +277,8 @@
         <!-- 新增来访目的 -->
         <div class="form-item">
             <div class="form-label">来访目的</div>
-            <select class="form-input" required>
-                <option value="">请选择</option>
+            <select id="purpose" class="form-input" required>
+                <option value="" disabled selected style="display: none;">请选择来访目的</option>
                 <option class="form-option" value="参观">参观</option>
                 <option class="form-option" value="维护">维护</option>
                 <option class="form-option" value="施工">施工</option>
@@ -271,7 +290,7 @@
         <div class="form-item">
             <div class="form-label">来访时间</div>
             <!--<input type="datetime-local" class="form-input" placeholder="请选择时间" />-->
-            <input id="my_datetime" class="form-input"  type="text" readonly placeholder="请选择来访时间" />
+            <input id="startDate" class="form-input"  type="text" readonly placeholder="请选择来访时间" />
         </div>
         
         <button id="submitBtn" class="submit-btn">提交信息</button>
@@ -320,7 +339,7 @@
     <script src="./js/cxcalendar.js"></script>
     <script>
         // 选择日期和时间
-        cxCalendar.attach(document.getElementById('my_datetime'), {
+        cxCalendar.attach(document.getElementById('startDate'), {
         type: 'datetime',
         format: 'Y-m-d H:i',
         baseClass: 'not_secs',
