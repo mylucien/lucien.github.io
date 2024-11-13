@@ -5,6 +5,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>中国电信数据中心访客预约</title>
+    <link rel="stylesheet" href="./css/cxcalendar.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
@@ -154,30 +155,6 @@
         .hidden {
             display: none;
         }
-        #startDate {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background-color: #ffffff; /* 可选择背景颜色 */
-            border: none; /* 自定义边框颜色 */
-            text-align: right; /* 文本右对齐 */
-            width: auto;
-            font-size: 14px;
-            font-family: 'Microsoft YaHei', sans-serif; /* 设置字体为微软雅黑 */
-        }
-        #purpose {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background-color: #ffffff; /* 可选择背景颜色 */
-            border: none; /* 自定义边框颜色 */
-            margin-left: auto; /* 将下拉框推到右侧 */
-            width: auto;
-            min-width: 90px;
-            max-width: 90px; /* 设置最大宽度 */
-            font-size: 14px;
-            font-family: 'Microsoft YaHei', sans-serif; /* 设置字体为微软雅黑 */
-        }
         .notice-content p {
             text-indent: 2em; /* 首行缩进两格 */
         }
@@ -276,7 +253,7 @@
         <!-- 新增来访目的 -->
         <div class="form-item">
             <div class="form-label">来访目的</div>
-            <select class="form-input" required >
+            <select class="form-input" required>
                 <option value="">请选择</option>
                 <option class="form-option" value="参观">参观</option>
                 <option class="form-option" value="维护">维护</option>
@@ -288,7 +265,8 @@
         <!-- 新增来访时间 -->
         <div class="form-item">
             <div class="form-label">来访时间</div>
-            <input type="datetime-local" class="form-input" placeholder="请选择时间" />
+            <!--<input type="datetime-local" class="form-input" placeholder="请选择时间" />-->
+            <input id="my_datetime" class="form-input"  type="text" readonly data-type="datetime" data-format="Y-m-d H:i" placeholder="请选择来访时间" />
         </div>
         
         <button id="submitBtn" class="submit-btn">提交信息</button>
@@ -334,6 +312,11 @@
             <p>谢谢您的理解和支持。</p>
         </div>
     </div>
+    <script src="./js/cxcalendar.js"></script>
+    <script>
+        // 方式一：绑定到输入框
+        $("#my_datetime").cxCalendar();
+    </script>
     <script>
         $(document).ready(function() {
             $('#submitBtn').click(function() {
