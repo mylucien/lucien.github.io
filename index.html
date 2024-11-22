@@ -341,7 +341,7 @@
         // 选择日期和时间
         cxCalendar.attach(document.getElementById('startDate'), {
         type: 'datetime',
-        format: 'Y-m-d H:i',
+        format: 'Y-m-d',
         baseClass: 'not_secs',
         endDate: '2035',
         });
@@ -388,14 +388,18 @@
                 const encode = (value) => {
                     return LZString.compressToEncodedURIComponent(value);
                 };
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get("token") || null;
 
                 const formData = {
                     name: name,
-                    idCard: idCard,
+                    id_card: idCard,
                     phone: phone,
                     company: company,
                     purpose: purpose,
-                    visitTime: startDate
+                    visit_time: startDate,
+                    token: token
                 };
 
                 const qrValue = JSON.stringify(formData);
